@@ -7,7 +7,7 @@ module Calendar exposing
     , withViewDayOfMonth, withViewDayOfMonthOfYear
     , withViewWeekdayHeader
     , withViewMonthHeader
-    , withViewDayHeader
+    , withViewDayHeader, withViewDayOfWeekHeader
     , weekBounds
     )
 
@@ -33,7 +33,7 @@ module Calendar exposing
 @docs withViewDayOfMonth, withViewDayOfMonthOfYear
 @docs withViewWeekdayHeader
 @docs withViewMonthHeader
-@docs withViewDayHeader
+@docs withViewDayHeader, withViewDayOfWeekHeader
 
 
 # Helpers
@@ -78,6 +78,7 @@ type alias InternalConfig msg =
     , viewWeekdayHeader : Maybe (Time.Weekday -> Html msg)
     , viewMonthHeader : Maybe (Time.Month -> Html msg)
     , viewDayHeader : Maybe (Time.Weekday -> Html msg)
+    , viewDayOfWeekHeader : Maybe (Date -> Html msg)
     }
 
 
@@ -104,6 +105,7 @@ new options =
         , viewWeekdayHeader = Nothing
         , viewMonthHeader = Nothing
         , viewDayHeader = Nothing
+        , viewDayOfWeekHeader = Nothing
         }
 
 
@@ -300,6 +302,30 @@ withViewDayHeader viewDayHeader (Config options) =
         }
 
 
+{-| Override the default rendering of the day header, for the `Week` scope.
+
+    Calendar.new
+        { period = Date.fromParts 2024 Time.Feb 22
+        , scope = Calendar.Month
+        }
+        |> Calendar.withViewDayOfWeekHeader
+            (\date ->
+                date
+                    |> Date.day
+                    |> String.fromInt
+                    |> Html.text
+            )
+        |> Calendar.view
+
+-}
+withViewDayOfWeekHeader : (Date -> Html msg) -> Config msg -> Config msg
+withViewDayOfWeekHeader viewDayOfWeekHeader (Config options) =
+    Config
+        { options
+            | viewDayOfWeekHeader = Just viewDayOfWeekHeader
+        }
+
+
 {-| Renders your `Config` to `Html`.
 If you want to customize the rendering,use one of the various `withView...` functions.
 
@@ -314,64 +340,10 @@ view : Config msg -> Html msg
 view (Config options) =
     case options.scope of
         Day ->
-            Html.div
-                [ Html.Attributes.style "display" "grid"
-                , Html.Attributes.style "grid-template-columns" "auto 1fr"
-                , Html.Attributes.style "grid-template-rows" "auto 1fr"
-                ]
-                [ Html.div [ Html.Attributes.style "border" "1px solid black" ] []
-                , case options.viewDayHeader of
-                    Just viewDayHeader ->
-                        viewDayHeader (Date.weekday options.period)
-
-                    Nothing ->
-                        Html.div
-                            [ Html.Attributes.style "border" "1px solid black"
-                            , Html.Attributes.style "border-left-width" "0"
-                            , Html.Attributes.style "display" "flex"
-                            , Html.Attributes.style "flex-direction" "column"
-                            , Html.Attributes.style "align-items" "center"
-                            , Html.Attributes.style "justify-content" "center"
-                            , Html.Attributes.style "padding" "3px"
-                            ]
-                            [ options.period
-                                |> Date.weekday
-                                |> weekdayToLabel
-                                |> Html.text
-                            ]
-                , Html.div
-                    [ Html.Attributes.style "border" "1px solid black"
-                    , Html.Attributes.style "border-top-width" "0"
-                    , Html.Attributes.style "display" "flex"
-                    , Html.Attributes.style "flex-direction" "column"
-                    , Html.Attributes.style "align-items" "center"
-                    , Html.Attributes.style "justify-content" "center"
-                    , Html.Attributes.style "padding" "3px"
-                    , Html.Attributes.style "border-bottom-style" "double"
-                    ]
-                    [ Html.text "all-day" ]
-                , Html.div
-                    [ Html.Attributes.style "border" "1px solid black"
-                    , Html.Attributes.style "border-top-width" "0"
-                    , Html.Attributes.style "border-left-width" "0"
-                    , Html.Attributes.style "min-height" "3rem"
-                    , Html.Attributes.style "border-bottom-style" "double"
-                    ]
-                    []
-                , allHours
-                    |> List.concatMap (viewHour options)
-                    |> Html.div
-                        [ Html.Attributes.style "display" "grid"
-                        , Html.Attributes.style "grid-template-columns" "subgrid"
-                        , Html.Attributes.style "grid-column" "1 / 3"
-                        , Html.Attributes.style "max-height" "40rem"
-                        , Html.Attributes.style "overflow" "auto"
-                        ]
-                ]
+            viewDay options
 
         Week ->
-            Html.div []
-                [ Html.text "TODO" ]
+            viewWeek options
 
         Month ->
             Html.div
@@ -386,6 +358,151 @@ view (Config options) =
             allMonths
                 |> List.map (viewMonthOfYear options)
                 |> Html.div []
+
+
+viewDay : InternalConfig msg -> Html msg
+viewDay options =
+    Html.div
+        [ Html.Attributes.style "display" "grid"
+        , Html.Attributes.style "grid-template-columns" "auto 1fr"
+        , Html.Attributes.style "grid-template-rows" "auto 1fr"
+        ]
+        [ Html.div [ Html.Attributes.style "border" "1px solid black" ] []
+        , case options.viewDayHeader of
+            Just viewDayHeader ->
+                viewDayHeader (Date.weekday options.period)
+
+            Nothing ->
+                Html.div
+                    [ Html.Attributes.style "border" "1px solid black"
+                    , Html.Attributes.style "border-left-width" "0"
+                    , Html.Attributes.style "display" "flex"
+                    , Html.Attributes.style "flex-direction" "column"
+                    , Html.Attributes.style "align-items" "center"
+                    , Html.Attributes.style "justify-content" "center"
+                    , Html.Attributes.style "padding" "3px"
+                    ]
+                    [ options.period
+                        |> Date.weekday
+                        |> weekdayToLabel
+                        |> Html.text
+                    ]
+        , Html.div
+            [ Html.Attributes.style "border" "1px solid black"
+            , Html.Attributes.style "border-top-width" "0"
+            , Html.Attributes.style "display" "flex"
+            , Html.Attributes.style "flex-direction" "column"
+            , Html.Attributes.style "align-items" "center"
+            , Html.Attributes.style "justify-content" "center"
+            , Html.Attributes.style "padding" "3px"
+            , Html.Attributes.style "border-bottom-style" "double"
+            ]
+            [ Html.text "all-day" ]
+        , Html.div
+            [ Html.Attributes.style "border" "1px solid black"
+            , Html.Attributes.style "border-top-width" "0"
+            , Html.Attributes.style "border-left-width" "0"
+            , Html.Attributes.style "min-height" "3rem"
+            , Html.Attributes.style "border-bottom-style" "double"
+            ]
+            []
+        , allHours
+            |> List.concatMap (viewHour options)
+            |> Html.div
+                [ Html.Attributes.style "display" "grid"
+                , Html.Attributes.style "grid-template-columns" "subgrid"
+                , Html.Attributes.style "grid-column" "1 / 3"
+                , Html.Attributes.style "max-height" "40rem"
+                , Html.Attributes.style "overflow" "auto"
+                ]
+        ]
+
+
+viewWeek : InternalConfig msg -> Html msg
+viewWeek options =
+    Html.div
+        [ Html.Attributes.style "display" "grid"
+        , Html.Attributes.style "grid-template-columns" "auto repeat(7, 1fr)"
+        , Html.Attributes.style "grid-template-rows" "auto 1fr"
+        ]
+        (List.concat
+            [ [ Html.div [ Html.Attributes.style "border" "1px solid black" ] [] ]
+            , let
+                ( start, end ) =
+                    weekBounds options.weekStartsOn options.period
+              in
+              Date.range Date.Day 1 start (Date.add Date.Days 1 end)
+                |> List.map
+                    (\date ->
+                        case options.viewDayOfWeekHeader of
+                            Just viewDayOfWeekHeader ->
+                                viewDayOfWeekHeader date
+
+                            Nothing ->
+                                Html.div
+                                    [ Html.Attributes.style "border" "1px solid black"
+                                    , Html.Attributes.style "border-left-width" "0"
+                                    , Html.Attributes.style "display" "flex"
+                                    , Html.Attributes.style "flex-direction" "column"
+                                    , Html.Attributes.style "align-items" "center"
+                                    , Html.Attributes.style "justify-content" "center"
+                                    , Html.Attributes.style "padding" "3px"
+                                    ]
+                                    [ let
+                                        weekday =
+                                            date
+                                                |> Date.weekday
+                                                |> weekdayToShortLabel
+
+                                        month =
+                                            date
+                                                |> Date.monthNumber
+                                                |> String.fromInt
+
+                                        day =
+                                            date
+                                                |> Date.day
+                                                |> String.fromInt
+                                      in
+                                      Html.text (weekday ++ " " ++ month ++ "/" ++ day)
+                                    ]
+                    )
+            , [ Html.div
+                    [ Html.Attributes.style "border" "1px solid black"
+                    , Html.Attributes.style "border-top-width" "0"
+                    , Html.Attributes.style "display" "flex"
+                    , Html.Attributes.style "flex-direction" "column"
+                    , Html.Attributes.style "align-items" "center"
+                    , Html.Attributes.style "justify-content" "center"
+                    , Html.Attributes.style "padding" "3px"
+                    , Html.Attributes.style "border-bottom-style" "double"
+                    ]
+                    [ Html.text "all-day" ]
+              ]
+            , List.range 1 7
+                |> List.map
+                    (\_ ->
+                        Html.div
+                            [ Html.Attributes.style "border" "1px solid black"
+                            , Html.Attributes.style "border-top-width" "0"
+                            , Html.Attributes.style "border-left-width" "0"
+                            , Html.Attributes.style "min-height" "3rem"
+                            , Html.Attributes.style "border-bottom-style" "double"
+                            ]
+                            []
+                    )
+            , [ allHours
+                    |> List.concatMap (viewWeekHour options)
+                    |> Html.div
+                        [ Html.Attributes.style "display" "grid"
+                        , Html.Attributes.style "grid-template-columns" "subgrid"
+                        , Html.Attributes.style "grid-column" "1 / 9"
+                        , Html.Attributes.style "max-height" "40rem"
+                        , Html.Attributes.style "overflow" "auto"
+                        ]
+              ]
+            ]
+        )
 
 
 allHours : List Int
@@ -431,6 +548,57 @@ viewHour options hour =
         , Html.Attributes.style "min-height" "3rem"
         ]
         []
+    ]
+
+
+viewWeekHour : InternalConfig msg -> Int -> List (Html msg)
+viewWeekHour options hour =
+    let
+        dayHour =
+            Html.div
+                [ Html.Attributes.style "border-color" "black"
+                , Html.Attributes.style "border-style" "solid"
+                , Html.Attributes.style "border-width" "1px"
+                , Html.Attributes.style "border-top-width" "0"
+                , Html.Attributes.style "border-left-width" "0"
+                , Html.Attributes.style "min-height" "3rem"
+                ]
+                []
+    in
+    [ Html.div
+        [ Html.Attributes.style "border-color" "black"
+        , Html.Attributes.style "border-style" "solid"
+        , Html.Attributes.style "border-width" "1px"
+        , Html.Attributes.style "border-top-width" "0"
+        , Html.Attributes.style "display" "flex"
+        , Html.Attributes.style "flex-direction" "column"
+        , Html.Attributes.style "align-items" "flex-end"
+        , Html.Attributes.style "justify-content" "flex-start"
+        , Html.Attributes.style "padding" "3px"
+        ]
+        [ Html.text <|
+            if options.use24HourTime then
+                String.padLeft 2 '0' (String.fromInt hour) ++ ":00"
+
+            else if hour == 0 then
+                "12am"
+
+            else if hour < 12 then
+                String.fromInt hour ++ "am"
+
+            else if hour == 12 then
+                "12pm"
+
+            else
+                String.fromInt (hour - 12) ++ "pm"
+        ]
+    , dayHour
+    , dayHour
+    , dayHour
+    , dayHour
+    , dayHour
+    , dayHour
+    , dayHour
     ]
 
 

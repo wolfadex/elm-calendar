@@ -23,7 +23,9 @@ main =
 type alias Model =
     { customDayOfMonth : Bool
     , customWeekdayHeader : Bool
+    , customMonthHeader : Bool
     , today : Date
+    , selectedDate : Date
     , period : Date
     , scope : Calendar.Scope
     }
@@ -33,7 +35,9 @@ init : () -> ( Model, Cmd Msg )
 init _ =
     ( { customDayOfMonth = False
       , customWeekdayHeader = False
+      , customMonthHeader = False
       , today = Date.fromCalendarDate 2024 Time.Feb 22
+      , selectedDate = Date.fromCalendarDate 2024 Time.Feb 22
       , period = Date.fromCalendarDate 2024 Time.Feb 22
       , scope = Calendar.Month
       }
@@ -48,9 +52,11 @@ subscriptions _ =
 
 
 type Msg
-    = UserClickedCustomDayOfMonth
+    = CurrentDateReceived Date
+    | UserClickedDate Date
+    | UserClickedCustomDayOfMonth
     | UserClickedCustomWeekdayHeader
-    | CurrentDateReceived Date
+    | UserClickedCustomMonthHeader
     | UserClickedPreviousPeriod
     | UserClickedNextPeriod
     | UserClickedTodayPeriod
@@ -61,7 +67,16 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         CurrentDateReceived today ->
-            ( { model | today = today, period = today }
+            ( { model
+                | today = today
+                , selectedDate = today
+                , period = today
+              }
+            , Cmd.none
+            )
+
+        UserClickedDate date ->
+            ( { model | period = date, selectedDate = date }
             , Cmd.none
             )
 
@@ -104,7 +119,7 @@ update msg model =
             )
 
         UserClickedTodayPeriod ->
-            ( { model | period = model.today }
+            ( { model | period = model.today, selectedDate = model.today }
             , Cmd.none
             )
 
@@ -120,6 +135,9 @@ update msg model =
 
         UserClickedCustomWeekdayHeader ->
             ( { model | customWeekdayHeader = not model.customWeekdayHeader }, Cmd.none )
+
+        UserClickedCustomMonthHeader ->
+            ( { model | customMonthHeader = not model.customMonthHeader }, Cmd.none )
 
 
 view : Model -> Browser.Document Msg
@@ -154,7 +172,7 @@ view model =
                     , viewToggleButton
                         { label = "Today"
                         , onClick = UserClickedTodayPeriod
-                        , active = model.period == model.today
+                        , active = model.selectedDate == model.today
                         }
                     ]
                 , Html.h1 [ Html.Attributes.style "text-align" "center" ]
@@ -261,10 +279,25 @@ view model =
             { period = model.period
             , scope = model.scope
             }
-            |> applyIf model.customDayOfMonth (Calendar.withViewDayOfMonth (viewDayOfMonthCustom model.today))
+            |> applyIf model.customDayOfMonth (Calendar.withViewDayOfMonth (viewDayOfMonthCustom model.selectedDate))
+            |> applyIf model.customDayOfMonth (Calendar.withViewDayOfMonthOfYear (viewDayOfMonthOfYearCustom model.selectedDate))
             |> applyIf model.customWeekdayHeader (Calendar.withViewWeekdayHeader viewWeekdayHeaderCustom)
+            |> applyIf model.customMonthHeader (Calendar.withViewMonthHeader (viewMonthHeaderCustom model.selectedDate))
             |> Calendar.withWeekStartsOn Time.Sun
             |> Calendar.view
+            |> (\cal ->
+                    case model.scope of
+                        Calendar.Year ->
+                            Html.div
+                                [ Html.Attributes.style "max-height" "60vh"
+                                , Html.Attributes.style "overflow" "auto"
+                                , Html.Attributes.style "border" "3px solid black"
+                                ]
+                                [ cal ]
+
+                        _ ->
+                            cal
+               )
         , Html.br [] []
         , Html.div
             [ Html.Attributes.style "display" "flex"
@@ -289,6 +322,16 @@ view model =
                         "Custom weekday header view"
                 , onClick = UserClickedCustomWeekdayHeader
                 , active = model.customWeekdayHeader
+                }
+            , viewToggleButton
+                { label =
+                    if model.customMonthHeader then
+                        "Default month header view"
+
+                    else
+                        "Custom month header view"
+                , onClick = UserClickedCustomMonthHeader
+                , active = model.customMonthHeader
                 }
             ]
         ]
@@ -371,12 +414,66 @@ viewDayOfMonthCustom today date =
                     , Html.Attributes.style "display" "flex"
                     , Html.Attributes.style "justify-content" "center"
                     , Html.Attributes.style "align-items" "center"
+                    , Html.Events.onClick (UserClickedDate date)
+                    , Html.Attributes.style "cursor" "pointer"
                     ]
                 )
                 [ Html.text (String.fromInt (Date.day date))
                 ]
             ]
         ]
+
+
+viewDayOfMonthOfYearCustom : Date -> Time.Month -> Date -> Html Msg
+viewDayOfMonthOfYearCustom today month date =
+    if Date.month date == month then
+        Html.div
+            [ Html.Attributes.style "border" "1px solid black"
+            , Html.Attributes.style "width" "100%"
+            , Html.Attributes.style "height" "100%"
+            , Html.Attributes.style "padding" "3px"
+            ]
+            [ Html.div
+                [ Html.Attributes.style "display" "flex"
+                , Html.Attributes.style "justify-content" "flex-end"
+                ]
+                [ Html.span
+                    (if date == today then
+                        [ Html.Attributes.style "font-weight" "bold"
+                        , Html.Attributes.style "background" "cornflowerblue"
+                        , Html.Attributes.style "color" "white"
+                        , Html.Attributes.style "border-radius" "50%"
+                        , Html.Attributes.style "width" "1.5rem"
+                        , Html.Attributes.style "height" "1.5rem"
+                        , Html.Attributes.style "display" "flex"
+                        , Html.Attributes.style "justify-content" "center"
+                        , Html.Attributes.style "align-items" "center"
+                        ]
+
+                     else
+                        [ Html.Attributes.style "border-radius" "50%"
+                        , Html.Attributes.style "width" "1.5rem"
+                        , Html.Attributes.style "height" "1.5rem"
+                        , Html.Attributes.style "display" "flex"
+                        , Html.Attributes.style "justify-content" "center"
+                        , Html.Attributes.style "align-items" "center"
+                        , Html.Events.onClick (UserClickedDate date)
+                        , Html.Attributes.style "cursor" "pointer"
+                        ]
+                    )
+                    [ Html.text (String.fromInt (Date.day date))
+                    ]
+                ]
+            ]
+
+    else
+        Html.div
+            [ Html.Attributes.style "border" "1px solid black"
+            , Html.Attributes.style "width" "100%"
+            , Html.Attributes.style "height" "100%"
+            , Html.Attributes.style "background" "#ffe5b6"
+            ]
+            []
 
 
 viewWeekdayHeaderCustom : Time.Weekday -> Html Msg
@@ -388,7 +485,29 @@ viewWeekdayHeaderCustom weekday =
         ]
         [ Html.span
             []
-            [ Html.text (weekdayToFullLabel weekday) ]
+            [ Html.text (weekdayToFullLabel weekday)
+            ]
+        ]
+
+
+viewMonthHeaderCustom : Date -> Time.Month -> Html Msg
+viewMonthHeaderCustom today month =
+    Html.h2
+        [ Html.Attributes.style "text-align" "center"
+        , if Date.month today == month then
+            Html.Attributes.style "text-decoration" "underline"
+
+          else
+            Html.Attributes.class ""
+        , if Date.month today == month then
+            Html.Attributes.style "color" "cornflowerblue"
+
+          else
+            Html.Attributes.class ""
+        ]
+        [ Html.span
+            []
+            [ Html.text (monthToLabel month) ]
         ]
 
 

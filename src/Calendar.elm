@@ -3,8 +3,9 @@ module Calendar exposing
     , Scope(..)
     , view
     , withWeekStartsOn
-    , withViewDayOfMonth
+    , withViewDayOfMonth, withViewDayOfMonthOfYear
     , withViewWeekdayHeader
+    , withViewMonthHeader
     )
 
 {-| REPLACEME
@@ -25,8 +26,9 @@ module Calendar exposing
 
 # Custom viewing
 
-@docs withViewDayOfMonth
+@docs withViewDayOfMonth, withViewDayOfMonthOfYear
 @docs withViewWeekdayHeader
+@docs withViewMonthHeader
 
 -}
 
@@ -61,7 +63,9 @@ type alias InternalConfig msg =
 
     -- Custom rendering
     , viewDayOfMonth : Maybe (Date -> Html msg)
+    , viewDayOfMonthOfYear : Maybe (Time.Month -> Date -> Html msg)
     , viewWeekdayHeader : Maybe (Time.Weekday -> Html msg)
+    , viewMonthHeader : Maybe (Time.Month -> Html msg)
     }
 
 
@@ -83,7 +87,9 @@ new options =
         , scope = options.scope
         , weekStartsOn = Time.Mon
         , viewDayOfMonth = Nothing
+        , viewDayOfMonthOfYear = Nothing
         , viewWeekdayHeader = Nothing
+        , viewMonthHeader = Nothing
         }
 
 
@@ -106,7 +112,7 @@ withWeekStartsOn weekday (Config options) =
         }
 
 
-{-| Override the default rendering of the day of the month.
+{-| Override the default rendering of the day of the month, for the `Month` scope.
 
     Calendar.new
         { period = Date.fromParts 2024 Time.Feb 22
@@ -125,6 +131,28 @@ withViewDayOfMonth viewDayOfMonth (Config options) =
     Config
         { options
             | viewDayOfMonth = Just viewDayOfMonth
+        }
+
+
+{-| Override the default rendering of the day of the month, for the `Year` scope.
+
+    Calendar.new
+        { period = Date.fromParts 2024 Time.Feb 22
+        , scope = Calendar.Month
+        }
+        |> Calendar.withViewDayOfMonthOfYear
+            (\month date ->
+                Html.text
+                    (String.fromInt (Date.day date))
+            )
+        |> Calendar.view
+
+-}
+withViewDayOfMonthOfYear : (Time.Month -> Date -> Html msg) -> Config msg -> Config msg
+withViewDayOfMonthOfYear viewDayOfMonthOfYear (Config options) =
+    Config
+        { options
+            | viewDayOfMonthOfYear = Just viewDayOfMonthOfYear
         }
 
 
@@ -170,6 +198,34 @@ withViewWeekdayHeader viewWeekdayHeader (Config options) =
         }
 
 
+{-| Override the default rendering of the month header, for the `Year` scope.
+
+    Calendar.new
+        { period = Date.fromParts 2024 Time.Feb 22
+        , scope = Calendar.Month
+        }
+        |> Calendar.withViewMonthHeader
+            (\month ->
+                case month of
+                    Time.Jan ->
+                        Html.text "Jan"
+
+                    Time.Feb ->
+                        Html.text "Feb"
+
+                    ...
+            )
+        |> Calendar.view
+
+-}
+withViewMonthHeader : (Time.Month -> Html msg) -> Config msg -> Config msg
+withViewMonthHeader viewMonthHeader (Config options) =
+    Config
+        { options
+            | viewMonthHeader = Just viewMonthHeader
+        }
+
+
 {-| Renders your `Config` to `Html`.
 If you want to customize the rendering,use one of the various `withView...` functions.
 
@@ -201,8 +257,139 @@ view (Config options) =
                 )
 
         Year ->
-            Html.div []
-                []
+            allMonths
+                |> List.map (viewMonthOfYear options)
+                |> Html.div []
+
+
+allMonths : List Time.Month
+allMonths =
+    [ Time.Jan
+    , Time.Feb
+    , Time.Mar
+    , Time.Apr
+    , Time.May
+    , Time.Jun
+    , Time.Jul
+    , Time.Aug
+    , Time.Sep
+    , Time.Oct
+    , Time.Nov
+    , Time.Dec
+    ]
+
+
+viewMonthOfYear : InternalConfig msg -> Time.Month -> Html msg
+viewMonthOfYear options month =
+    Html.div []
+        [ case options.viewMonthHeader of
+            Just viewMonthHeader ->
+                viewMonthHeader month
+
+            Nothing ->
+                Html.h2 [ Html.Attributes.style "text-align" "center" ]
+                    [ Html.text (monthToLabel month) ]
+        , Html.div
+            [ Html.Attributes.style "display" "grid"
+            , Html.Attributes.style "grid-template-columns" "repeat(7, 1fr)"
+            ]
+            (viewDaysOfWeek options
+                ++ viewMonthDaysOfYear options month
+            )
+        ]
+
+
+monthToLabel : Time.Month -> String
+monthToLabel month =
+    case month of
+        Time.Jan ->
+            "January"
+
+        Time.Feb ->
+            "February"
+
+        Time.Mar ->
+            "March"
+
+        Time.Apr ->
+            "April"
+
+        Time.May ->
+            "May"
+
+        Time.Jun ->
+            "June"
+
+        Time.Jul ->
+            "July"
+
+        Time.Aug ->
+            "August"
+
+        Time.Sep ->
+            "September"
+
+        Time.Oct ->
+            "October"
+
+        Time.Nov ->
+            "November"
+
+        Time.Dec ->
+            "December"
+
+
+viewMonthDaysOfYear : InternalConfig msg -> Time.Month -> List (Html msg)
+viewMonthDaysOfYear options month =
+    let
+        period =
+            Date.fromCalendarDate (Date.year options.period) month 1
+
+        firstDay =
+            period
+                |> Date.floor Date.Month
+                |> Date.floor (startOfWeek options.weekStartsOn)
+
+        lastDate =
+            period
+                |> ceilingMonth
+                |> Date.ceiling (endOfWeek options.weekStartsOn)
+                |> Date.add Date.Days 1
+    in
+    Date.range Date.Day 1 firstDay lastDate
+        |> List.map (viewMonthDayOfYear options month)
+
+
+viewMonthDayOfYear : InternalConfig msg -> Time.Month -> Date -> Html msg
+viewMonthDayOfYear options month date =
+    Html.div
+        [ Html.Attributes.style "aspect-ratio" "1"
+        ]
+        [ case options.viewDayOfMonthOfYear of
+            Just viewDayOfMonthOfYear ->
+                viewDayOfMonthOfYear month date
+
+            Nothing ->
+                if Date.month date == month then
+                    Html.div
+                        [ Html.Attributes.style "border" "1px solid black"
+                        , Html.Attributes.style "width" "100%"
+                        , Html.Attributes.style "height" "100%"
+                        , Html.Attributes.style "display" "flex"
+                        , Html.Attributes.style "justify-content" "center"
+                        , Html.Attributes.style "align-items" "center"
+                        ]
+                        [ Html.text (String.fromInt (Date.day date)) ]
+
+                else
+                    Html.div
+                        [ Html.Attributes.style "border" "1px solid black"
+                        , Html.Attributes.style "width" "100%"
+                        , Html.Attributes.style "height" "100%"
+                        , Html.Attributes.style "background" "lightgray"
+                        ]
+                        []
+        ]
 
 
 viewDaysOfWeek : InternalConfig msg -> List (Html msg)

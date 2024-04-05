@@ -24,6 +24,7 @@ type alias Model =
     { customDayOfMonth : Bool
     , customWeekdayHeader : Bool
     , today : Date
+    , period : Date
     , scope : Calendar.Scope
     }
 
@@ -33,6 +34,7 @@ init _ =
     ( { customDayOfMonth = False
       , customWeekdayHeader = False
       , today = Date.fromCalendarDate 2024 Time.Feb 22
+      , period = Date.fromCalendarDate 2024 Time.Feb 22
       , scope = Calendar.Month
       }
     , Date.today
@@ -51,23 +53,63 @@ type Msg
     | CurrentDateReceived Date
     | UserClickedPreviousPeriod
     | UserClickedNextPeriod
+    | UserClickedTodayPeriod
+    | UserClickedScope Calendar.Scope
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         CurrentDateReceived today ->
-            ( { model | today = today }
+            ( { model | today = today, period = today }
             , Cmd.none
             )
 
         UserClickedPreviousPeriod ->
-            ( { model | today = Date.add Date.Months -1 model.today }
+            ( { model
+                | period =
+                    case model.scope of
+                        Calendar.Year ->
+                            Date.add Date.Years -1 model.period
+
+                        Calendar.Month ->
+                            Date.add Date.Months -1 model.period
+
+                        Calendar.Week ->
+                            Date.add Date.Weeks -1 model.period
+
+                        Calendar.Day ->
+                            Date.add Date.Days -1 model.period
+              }
             , Cmd.none
             )
 
         UserClickedNextPeriod ->
-            ( { model | today = Date.add Date.Months 1 model.today }
+            ( { model
+                | period =
+                    case model.scope of
+                        Calendar.Year ->
+                            Date.add Date.Years 1 model.period
+
+                        Calendar.Month ->
+                            Date.add Date.Months 1 model.period
+
+                        Calendar.Week ->
+                            Date.add Date.Weeks 1 model.period
+
+                        Calendar.Day ->
+                            Date.add Date.Days 1 model.period
+              }
+            , Cmd.none
+            )
+
+        UserClickedTodayPeriod ->
+            ( { model | period = model.today }
+            , Cmd.none
+            )
+
+        UserClickedScope scope ->
+            ( { model | scope = scope }
             , Cmd.none
             )
 
@@ -87,91 +129,167 @@ view model =
         [ Html.div
             [ Html.Attributes.style "display" "flex"
             ]
-            [ case model.scope of
-                Calendar.Month ->
-                    let
-                        month =
-                            model.today
-                                |> Date.month
-                                |> monthToLabel
-                    in
-                    Html.div
-                        [ Html.Attributes.style "display" "flex"
-                        , Html.Attributes.style "gap" "2rem"
+            [ Html.div
+                [ Html.Attributes.style "display" "grid"
+                , Html.Attributes.style "gap" "1rem"
+                , Html.Attributes.style "grid-template-columns" "1fr auto 1fr"
+                , Html.Attributes.style "width" "100%"
+                ]
+                [ Html.div
+                    [ Html.Attributes.style "display" "flex"
+                    , Html.Attributes.style "gap" "2rem"
+                    , Html.Attributes.style "align-items" "center"
+                    ]
+                    [ viewButtonGroup
+                        []
+                        [ { label = "Previous"
+                          , onClick = UserClickedPreviousPeriod
+                          , attributes = []
+                          }
+                        , { label = "Next"
+                          , onClick = UserClickedNextPeriod
+                          , attributes = []
+                          }
                         ]
-                        [ Html.div
-                            [ Html.Attributes.style "display" "flex"
-                            , Html.Attributes.style "align-items" "center"
-                            ]
-                            [ Html.button
-                                [ Html.Attributes.style "border-top-right-radius" "0"
-                                , Html.Attributes.style "border-bottom-right-radius" "0"
-                                , Html.Attributes.style "border-top-left-radius" "1rem"
-                                , Html.Attributes.style "border-bottom-left-radius" "1rem"
-                                , Html.Attributes.style "padding" "0.25rem 0.5rem"
-                                , Html.Events.onClick UserClickedPreviousPeriod
+                    , viewToggleButton
+                        { label = "Today"
+                        , onClick = UserClickedTodayPeriod
+                        , active = model.period == model.today
+                        }
+                    ]
+                , Html.h1 [ Html.Attributes.style "text-align" "center" ]
+                    [ case model.scope of
+                        Calendar.Year ->
+                            Html.h1 []
+                                [ model.period
+                                    |> Date.year
+                                    |> String.fromInt
+                                    |> Html.text
                                 ]
-                                [ Html.text "Previous" ]
-                            , Html.button
-                                [ Html.Attributes.style "border-top-left-radius" "0"
-                                , Html.Attributes.style "border-bottom-left-radius" "0"
-                                , Html.Attributes.style "border-top-right-radius" "1rem"
-                                , Html.Attributes.style "border-bottom-right-radius" "1rem"
-                                , Html.Attributes.style "padding" "0.25rem 0.5rem"
-                                , Html.Events.onClick UserClickedNextPeriod
+
+                        Calendar.Month ->
+                            let
+                                month =
+                                    model.period
+                                        |> Date.month
+                                        |> monthToLabel
+                            in
+                            (month ++ " " ++ String.fromInt (Date.year model.period))
+                                |> Html.text
+
+                        Calendar.Week ->
+                            Html.h1 []
+                                [ Html.text <| "Week view" ]
+
+                        Calendar.Day ->
+                            let
+                                year =
+                                    model.period
+                                        |> Date.year
+                                        |> String.fromInt
+
+                                month =
+                                    model.period
+                                        |> Date.month
+                                        |> monthToLabel
+
+                                day =
+                                    model.period
+                                        |> Date.day
+                                        |> Date.withOrdinalSuffix
+                            in
+                            Html.h1 []
+                                [ (year ++ " " ++ month ++ " " ++ day)
+                                    |> Html.text
                                 ]
-                                [ Html.text "Next" ]
-                            ]
-                        , Html.h1 []
-                            [ Html.text <|
-                                month
-                                    ++ " "
-                                    ++ String.fromInt (Date.year model.today)
-                            ]
-                        ]
+                    ]
+                , viewButtonGroup
+                    [ Html.Attributes.style "justify-content" "flex-end"
+                    ]
+                    [ { label = "Year"
+                      , onClick = UserClickedScope Calendar.Year
+                      , attributes =
+                            case model.scope of
+                                Calendar.Year ->
+                                    [ Html.Attributes.style "background-color" "cornflowerblue"
+                                    , Html.Attributes.style "color" "white"
+                                    ]
 
-                Calendar.Week ->
-                    Html.h1 []
-                        [ Html.text <| "Week view" ]
+                                _ ->
+                                    []
+                      }
+                    , { label = "Month"
+                      , onClick = UserClickedScope Calendar.Month
+                      , attributes =
+                            case model.scope of
+                                Calendar.Month ->
+                                    [ Html.Attributes.style "background-color" "cornflowerblue"
+                                    , Html.Attributes.style "color" "white"
+                                    ]
 
-                Calendar.Day ->
-                    Html.h1 []
-                        [ Html.text <| "Day view" ]
+                                _ ->
+                                    []
+                      }
+                    , { label = "Week"
+                      , onClick = UserClickedScope Calendar.Week
+                      , attributes =
+                            case model.scope of
+                                Calendar.Week ->
+                                    [ Html.Attributes.style "background-color" "cornflowerblue"
+                                    , Html.Attributes.style "color" "white"
+                                    ]
 
-                Calendar.Year ->
-                    Html.h1 []
-                        [ Html.text <| "Year view" ]
+                                _ ->
+                                    []
+                      }
+                    , { label = "Day"
+                      , onClick = UserClickedScope Calendar.Day
+                      , attributes =
+                            case model.scope of
+                                Calendar.Day ->
+                                    [ Html.Attributes.style "background-color" "cornflowerblue"
+                                    , Html.Attributes.style "color" "white"
+                                    ]
+
+                                _ ->
+                                    []
+                      }
+                    ]
+                ]
             ]
         , Calendar.new
-            { period = model.today
+            { period = model.period
             , scope = model.scope
             }
             |> applyIf model.customDayOfMonth (Calendar.withViewDayOfMonth (viewDayOfMonthCustom model.today))
             |> applyIf model.customWeekdayHeader (Calendar.withViewWeekdayHeader viewWeekdayHeaderCustom)
+            |> Calendar.withWeekStartsOn Time.Sun
             |> Calendar.view
         , Html.br [] []
         , Html.div
             [ Html.Attributes.style "display" "flex"
             , Html.Attributes.style "gap" "1rem"
             ]
-            [ Html.button
-                [ Html.Events.onClick UserClickedCustomDayOfMonth ]
-                [ Html.text <|
+            [ viewToggleButton
+                { label =
                     if model.customDayOfMonth then
                         "Default day of month view"
 
                     else
                         "Custom day of month view"
-                ]
-            , Html.button
-                [ Html.Events.onClick UserClickedCustomWeekdayHeader ]
-                [ Html.text <|
+                , onClick = UserClickedCustomDayOfMonth
+                , active = model.customDayOfMonth
+                }
+            , viewToggleButton
+                { label =
                     if model.customWeekdayHeader then
                         "Default weekday header view"
 
                     else
                         "Custom weekday header view"
-                ]
+                , onClick = UserClickedCustomWeekdayHeader
+                , active = model.customWeekdayHeader
+                }
             ]
         ]
     }
@@ -297,6 +415,104 @@ weekdayToFullLabel weekday =
 
         Time.Sun ->
             "Sunday"
+
+
+viewButtonGroup : List (Html.Attribute msg) -> List { label : String, onClick : msg, attributes : List (Html.Attribute msg) } -> Html msg
+viewButtonGroup attributes buttons =
+    Html.div
+        ([ Html.Attributes.style "display" "flex"
+         , Html.Attributes.style "align-items" "center"
+         ]
+            ++ attributes
+        )
+        (case buttons of
+            [] ->
+                []
+
+            [ only ] ->
+                [ Html.button
+                    ([ Html.Attributes.style "border-radius" "0.5rem"
+                     , Html.Attributes.style "padding" "0.25rem 0.5rem"
+                     , Html.Events.onClick only.onClick
+                     ]
+                        ++ only.attributes
+                    )
+                    [ Html.text only.label ]
+                ]
+
+            first :: rest ->
+                List.concat
+                    [ [ Html.button
+                            ([ Html.Attributes.style "border-top-right-radius" "0"
+                             , Html.Attributes.style "border-bottom-right-radius" "0"
+                             , Html.Attributes.style "border-top-left-radius" "0.5rem"
+                             , Html.Attributes.style "border-bottom-left-radius" "0.5rem"
+                             , Html.Attributes.style "padding" "0.25rem 0.5rem"
+                             , Html.Events.onClick first.onClick
+                             ]
+                                ++ first.attributes
+                            )
+                            [ Html.text first.label ]
+                      ]
+                    , case List.reverse rest of
+                        [] ->
+                            []
+
+                        last :: middle ->
+                            List.reverse
+                                (Html.button
+                                    ([ Html.Attributes.style "border-top-left-radius" "0"
+                                     , Html.Attributes.style "border-bottom-left-radius" "0"
+                                     , Html.Attributes.style "border-top-right-radius" "0.5rem"
+                                     , Html.Attributes.style "border-bottom-right-radius" "0.5rem"
+                                     , Html.Attributes.style "padding" "0.25rem 0.5rem"
+                                     , Html.Events.onClick last.onClick
+                                     ]
+                                        ++ last.attributes
+                                    )
+                                    [ Html.text last.label ]
+                                    :: List.map
+                                        (\button ->
+                                            Html.button
+                                                ([ Html.Attributes.style "border-radius" "0"
+                                                 , Html.Attributes.style "padding" "0.25rem 0.5rem"
+                                                 , Html.Events.onClick button.onClick
+                                                 ]
+                                                    ++ button.attributes
+                                                )
+                                                [ Html.text button.label ]
+                                        )
+                                        middle
+                                )
+                    ]
+        )
+
+
+viewToggleButton : { label : String, onClick : msg, active : Bool } -> Html msg
+viewToggleButton options =
+    Html.button
+        (buttonStyles
+            ++ [ Html.Events.onClick options.onClick
+               , if options.active then
+                    Html.Attributes.style "background-color" "cornflowerblue"
+
+                 else
+                    Html.Attributes.class ""
+               , if options.active then
+                    Html.Attributes.style "color" "white"
+
+                 else
+                    Html.Attributes.class ""
+               ]
+        )
+        [ Html.text options.label ]
+
+
+buttonStyles : List (Html.Attribute msg)
+buttonStyles =
+    [ Html.Attributes.style "border-radius" "0.5rem"
+    , Html.Attributes.style "padding" "0.25rem 0.5rem"
+    ]
 
 
 

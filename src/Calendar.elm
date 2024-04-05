@@ -2,7 +2,7 @@ module Calendar exposing
     ( Config, new
     , Scope(..)
     , view
-    , withWeekStartsOnMonday
+    , withWeekStartsOn
     , withViewDayOfMonth
     , withViewWeekdayHeader
     )
@@ -20,7 +20,7 @@ module Calendar exposing
 
 # Modify the general rendering
 
-@docs withWeekStartsOnMonday
+@docs withWeekStartsOn
 
 
 # Custom viewing
@@ -57,7 +57,7 @@ type alias InternalConfig msg =
     , scope : Scope
 
     -- Layout options
-    , weekStartsOnMonday : Bool
+    , weekStartsOn : Time.Weekday
 
     -- Custom rendering
     , viewDayOfMonth : Maybe (Date -> Html msg)
@@ -81,28 +81,28 @@ new options =
     Config
         { period = options.period
         , scope = options.scope
-        , weekStartsOnMonday = False
+        , weekStartsOn = Time.Mon
         , viewDayOfMonth = Nothing
         , viewWeekdayHeader = Nothing
         }
 
 
-{-| By default, this package has the week starts on Sunday.
-Use this function to change it to Monday.
+{-| By default this the week starts on Monday.
+Use this function to change it to another day.
 
     Calendar.new
         { period = Date.fromParts 2022 Time.Feb 22
         , scope = Calendar.Month
         }
-        |> Calendar.withWeekStartsOnMonday
+        |> Calendar.withWeekStartsOn Time.Sun
         |> Calendar.view
 
 -}
-withWeekStartsOnMonday : Config msg -> Config msg
-withWeekStartsOnMonday (Config options) =
+withWeekStartsOn : Time.Weekday -> Config msg -> Config msg
+withWeekStartsOn weekday (Config options) =
     Config
         { options
-            | weekStartsOnMonday = True
+            | weekStartsOn = weekday
         }
 
 
@@ -207,27 +207,45 @@ view (Config options) =
 
 viewDaysOfWeek : InternalConfig msg -> List (Html msg)
 viewDaysOfWeek options =
-    let
-        daysOfWeek =
-            if options.weekStartsOnMonday then
-                [ Time.Mon, Time.Tue, Time.Wed, Time.Thu, Time.Fri, Time.Sat, Time.Sun ]
+    options.weekStartsOn
+        |> daysOfWeek
+        |> List.map
+            (\weekday ->
+                case options.viewWeekdayHeader of
+                    Just viewWeekdayHeader ->
+                        viewWeekdayHeader weekday
 
-            else
-                [ Time.Sun, Time.Mon, Time.Tue, Time.Wed, Time.Thu, Time.Fri, Time.Sat ]
-    in
-    List.map
-        (\weekday ->
-            case options.viewWeekdayHeader of
-                Just viewWeekdayHeader ->
-                    viewWeekdayHeader weekday
+                    Nothing ->
+                        Html.div
+                            [ Html.Attributes.style "border" "1px solid black"
+                            ]
+                            [ Html.text (weekdayToLabel weekday) ]
+            )
 
-                Nothing ->
-                    Html.div
-                        [ Html.Attributes.style "border" "1px solid black"
-                        ]
-                        [ Html.text (weekdayToLabel weekday) ]
-        )
-        daysOfWeek
+
+daysOfWeek : Time.Weekday -> List Time.Weekday
+daysOfWeek start =
+    case start of
+        Time.Mon ->
+            [ Time.Mon, Time.Tue, Time.Wed, Time.Thu, Time.Fri, Time.Sat, Time.Sun ]
+
+        Time.Tue ->
+            [ Time.Tue, Time.Wed, Time.Thu, Time.Fri, Time.Sat, Time.Sun, Time.Mon ]
+
+        Time.Wed ->
+            [ Time.Wed, Time.Thu, Time.Fri, Time.Sat, Time.Sun, Time.Mon, Time.Tue ]
+
+        Time.Thu ->
+            [ Time.Thu, Time.Fri, Time.Sat, Time.Sun, Time.Mon, Time.Tue, Time.Wed ]
+
+        Time.Fri ->
+            [ Time.Fri, Time.Sat, Time.Sun, Time.Mon, Time.Tue, Time.Wed, Time.Thu ]
+
+        Time.Sat ->
+            [ Time.Sat, Time.Sun, Time.Mon, Time.Tue, Time.Wed, Time.Thu, Time.Fri ]
+
+        Time.Sun ->
+            [ Time.Sun, Time.Mon, Time.Tue, Time.Wed, Time.Thu, Time.Fri, Time.Sat ]
 
 
 weekdayToLabel : Time.Weekday -> String
@@ -261,29 +279,66 @@ viewMonthDays options =
         firstDay =
             options.period
                 |> Date.floor Date.Month
-                |> Date.floor Date.Week
-                |> (\d ->
-                        if options.weekStartsOnMonday then
-                            d
-
-                        else
-                            Date.add Date.Days -1 d
-                   )
+                |> Date.floor (startOfWeek options.weekStartsOn)
 
         lastDate =
             options.period
-                |> Date.ceiling Date.Month
-                |> Date.ceiling Date.Week
-                |> (\d ->
-                        if options.weekStartsOnMonday then
-                            d
-
-                        else
-                            Date.add Date.Days -1 d
-                   )
+                |> ceilingMonth
+                |> Date.ceiling (endOfWeek options.weekStartsOn)
+                |> Date.add Date.Days 1
     in
     Date.range Date.Day 1 firstDay lastDate
         |> List.map (viewMonthDay options)
+
+
+startOfWeek : Time.Weekday -> Date.Interval
+startOfWeek weekday =
+    case weekday of
+        Time.Mon ->
+            Date.Monday
+
+        Time.Tue ->
+            Date.Tuesday
+
+        Time.Wed ->
+            Date.Wednesday
+
+        Time.Thu ->
+            Date.Thursday
+
+        Time.Fri ->
+            Date.Friday
+
+        Time.Sat ->
+            Date.Saturday
+
+        Time.Sun ->
+            Date.Sunday
+
+
+endOfWeek : Time.Weekday -> Date.Interval
+endOfWeek weekday =
+    case weekday of
+        Time.Mon ->
+            Date.Sunday
+
+        Time.Tue ->
+            Date.Monday
+
+        Time.Wed ->
+            Date.Tuesday
+
+        Time.Thu ->
+            Date.Wednesday
+
+        Time.Fri ->
+            Date.Thursday
+
+        Time.Sat ->
+            Date.Friday
+
+        Time.Sun ->
+            Date.Saturday
 
 
 viewMonthDay : InternalConfig msg -> Date -> Html msg
@@ -306,3 +361,17 @@ viewMonthDay options date =
                     ]
                     [ Html.text (String.fromInt (Date.day date)) ]
         ]
+
+
+
+-- HELPERS
+
+
+{-| Rounds to the last day of the month of the given date.
+-}
+ceilingMonth : Date -> Date
+ceilingMonth date =
+    date
+        |> Date.add Date.Months 1
+        |> Date.floor Date.Month
+        |> Date.add Date.Days -1

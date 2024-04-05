@@ -196,8 +196,56 @@ view model =
                                 |> Html.text
 
                         Calendar.Week ->
-                            Html.h1 []
-                                [ Html.text <| "Week view" ]
+                            let
+                                ( startDate, endDate ) =
+                                    Calendar.weekBounds Time.Sun model.period
+
+                                startYear =
+                                    Date.year startDate
+
+                                endYear =
+                                    Date.year endDate
+
+                                startMonth =
+                                    Date.month startDate
+
+                                endMonth =
+                                    Date.month endDate
+
+                                startDay =
+                                    Date.day startDate
+                                        |> Date.withOrdinalSuffix
+
+                                endDay =
+                                    Date.day endDate
+                                        |> Date.withOrdinalSuffix
+                            in
+                            Html.h3 []
+                                [ (monthToShortLabel startMonth
+                                    ++ " "
+                                    ++ startDay
+                                    ++ (if startYear == endYear then
+                                            ""
+
+                                        else
+                                            ", " ++ String.fromInt startYear
+                                       )
+                                  )
+                                    |> Html.text
+                                , Html.text " — "
+                                , ((if startMonth == endMonth then
+                                        ""
+
+                                    else
+                                        monthToShortLabel endMonth
+                                   )
+                                    ++ " "
+                                    ++ endDay
+                                    ++ ", "
+                                    ++ String.fromInt endYear
+                                  )
+                                    |> Html.text
+                                ]
 
                         Calendar.Day ->
                             let
@@ -376,6 +424,46 @@ monthToLabel month =
 
         Time.Dec ->
             "December"
+
+
+monthToShortLabel : Time.Month -> String
+monthToShortLabel month =
+    case month of
+        Time.Jan ->
+            "Jan"
+
+        Time.Feb ->
+            "Feb"
+
+        Time.Mar ->
+            "Mar"
+
+        Time.Apr ->
+            "Apr"
+
+        Time.May ->
+            "May"
+
+        Time.Jun ->
+            "Jun"
+
+        Time.Jul ->
+            "Jul"
+
+        Time.Aug ->
+            "Aug"
+
+        Time.Sep ->
+            "Sep"
+
+        Time.Oct ->
+            "Oct"
+
+        Time.Nov ->
+            "Nov"
+
+        Time.Dec ->
+            "Dec"
 
 
 

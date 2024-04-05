@@ -6,6 +6,7 @@ module Calendar exposing
     , withViewDayOfMonth, withViewDayOfMonthOfYear
     , withViewWeekdayHeader
     , withViewMonthHeader
+    , weekBounds
     )
 
 {-| REPLACEME
@@ -29,6 +30,11 @@ module Calendar exposing
 @docs withViewDayOfMonth, withViewDayOfMonthOfYear
 @docs withViewWeekdayHeader
 @docs withViewMonthHeader
+
+
+# Helpers
+
+@docs weekBounds
 
 -}
 
@@ -562,3 +568,20 @@ ceilingMonth date =
         |> Date.add Date.Months 1
         |> Date.floor Date.Month
         |> Date.add Date.Days -1
+
+
+{-| Get the first and last day of the week that the given date is in,
+relative to the start day of the week.
+-}
+weekBounds : Time.Weekday -> Date -> ( Date, Date )
+weekBounds weekStartsOn date =
+    let
+        start =
+            date
+                |> Date.floor (startOfWeek weekStartsOn)
+
+        end =
+            date
+                |> Date.ceiling (endOfWeek weekStartsOn)
+    in
+    ( start, end )

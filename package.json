@@ -19,8 +19,11 @@
     "elm-test": "0.19.1-revision12",
     "elm-tooling": "1.15.1",
     "elm-verify-examples": "6.0.3",
-    "elm-watch": "^2.0.0-beta.2",
+    "elm-watch": "2.0.0-beta.2",
     "prettier": "3.2.5",
-    "run-pty": "^5.0.0"
+    "run-pty": "5.0.0"
+  },
+  "volta": {
+    "node": "20.12.1"
   }
 }

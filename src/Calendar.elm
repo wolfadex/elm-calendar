@@ -8,10 +8,12 @@ module Calendar exposing
     , withViewWeekdayHeader
     , withViewMonthHeader
     , withViewDayHeader, withViewDayOfWeekHeader
-    , weekBounds
+    , withViewMultiDayEvent
+    , weekBounds, calendarMonthBounds
+    , toRowAndColumn
     )
 
-{-| REPLACEME
+{-| A stateless calendar for viewing events or anything else that can be displayed across time.
 
 
 # Create
@@ -35,10 +37,13 @@ module Calendar exposing
 @docs withViewMonthHeader
 @docs withViewDayHeader, withViewDayOfWeekHeader
 
+@docs withViewMultiDayEvent
+
 
 # Helpers
 
-@docs weekBounds
+@docs weekBounds, calendarMonthBounds
+@docs toRowAndColumn
 
 -}
 
@@ -73,12 +78,13 @@ type alias InternalConfig msg =
     , use24HourTime : Bool
 
     -- Custom rendering
-    , viewDayOfMonth : Maybe (Date -> Html msg)
+    , viewDayOfMonth : Maybe ({ column : Int, row : Int } -> Date -> Html msg)
     , viewDayOfMonthOfYear : Maybe (Time.Month -> Date -> Html msg)
-    , viewWeekdayHeader : Maybe (Time.Weekday -> Html msg)
+    , viewWeekdayHeader : Maybe (Int -> Time.Weekday -> Html msg)
     , viewMonthHeader : Maybe (Time.Month -> Html msg)
     , viewDayHeader : Maybe (Time.Weekday -> Html msg)
     , viewDayOfWeekHeader : Maybe (Date -> Html msg)
+    , viewMultiDayEvents : Maybe (List (Html msg))
     }
 
 
@@ -87,7 +93,7 @@ what year, month, and day we are looking at. The `scope` tells
 us which "zoom" level to render the data at.
 
     Calendar.new
-        { period = Date.fromParts 2024 Time.Feb 22
+        { period = Date.fromCalendarDate 2024 Time.Feb 22
         , scope = Calendar.Month
         }
         |> Calendar.view
@@ -106,6 +112,7 @@ new options =
         , viewMonthHeader = Nothing
         , viewDayHeader = Nothing
         , viewDayOfWeekHeader = Nothing
+        , viewMultiDayEvents = Nothing
         }
 
 
@@ -113,7 +120,7 @@ new options =
 Use this function to change it to another day.
 
     Calendar.new
-        { period = Date.fromParts 2022 Time.Feb 22
+        { period = Date.fromCalendarDate 2022 Time.Feb 22
         , scope = Calendar.Month
         }
         |> Calendar.withWeekStartsOn Time.Sun
@@ -131,7 +138,7 @@ withWeekStartsOn weekday (Config options) =
 {-| Instead of AM & PM display times in 24-hour format.
 
     Calendar.new
-        { period = Date.fromParts 2022 Time.Feb 22
+        { period = Date.fromCalendarDate 2022 Time.Feb 22
         , scope = Calendar.Month
         }
         |> Calendar.with24HourTime
@@ -149,7 +156,7 @@ with24HourTime (Config options) =
 {-| Override the default rendering of the day of the month, for the `Month` scope.
 
     Calendar.new
-        { period = Date.fromParts 2024 Time.Feb 22
+        { period = Date.fromCalendarDate 2024 Time.Feb 22
         , scope = Calendar.Month
         }
         |> Calendar.withViewDayOfMonth
@@ -160,7 +167,7 @@ with24HourTime (Config options) =
         |> Calendar.view
 
 -}
-withViewDayOfMonth : (Date -> Html msg) -> Config msg -> Config msg
+withViewDayOfMonth : ({ column : Int, row : Int } -> Date -> Html msg) -> Config msg -> Config msg
 withViewDayOfMonth viewDayOfMonth (Config options) =
     Config
         { options
@@ -171,7 +178,7 @@ withViewDayOfMonth viewDayOfMonth (Config options) =
 {-| Override the default rendering of the day of the month, for the `Year` scope.
 
     Calendar.new
-        { period = Date.fromParts 2024 Time.Feb 22
+        { period = Date.fromCalendarDate 2024 Time.Feb 22
         , scope = Calendar.Month
         }
         |> Calendar.withViewDayOfMonthOfYear
@@ -193,7 +200,7 @@ withViewDayOfMonthOfYear viewDayOfMonthOfYear (Config options) =
 {-| Override the default rendering of the weekday header of the month.
 
     Calendar.new
-        { period = Date.fromParts 2024 Time.Feb 22
+        { period = Date.fromCalendarDate 2024 Time.Feb 22
         , scope = Calendar.Month
         }
         |> Calendar.withViewWeekdayHeader
@@ -224,7 +231,7 @@ withViewDayOfMonthOfYear viewDayOfMonthOfYear (Config options) =
         |> Calendar.view
 
 -}
-withViewWeekdayHeader : (Time.Weekday -> Html msg) -> Config msg -> Config msg
+withViewWeekdayHeader : (Int -> Time.Weekday -> Html msg) -> Config msg -> Config msg
 withViewWeekdayHeader viewWeekdayHeader (Config options) =
     Config
         { options
@@ -235,7 +242,7 @@ withViewWeekdayHeader viewWeekdayHeader (Config options) =
 {-| Override the default rendering of the month header, for the `Year` scope.
 
     Calendar.new
-        { period = Date.fromParts 2024 Time.Feb 22
+        { period = Date.fromCalendarDate  2024 Time.Feb 22
         , scope = Calendar.Month
         }
         |> Calendar.withViewMonthHeader
@@ -263,7 +270,7 @@ withViewMonthHeader viewMonthHeader (Config options) =
 {-| Override the default rendering of the day header, for the `Day` scope.
 
     Calendar.new
-        { period = Date.fromParts 2024 Time.Feb 22
+        { period = Date.fromCalendarDate 2024 Time.Feb 22
         , scope = Calendar.Month
         }
         |> Calendar.withViewDayHeader
@@ -305,7 +312,7 @@ withViewDayHeader viewDayHeader (Config options) =
 {-| Override the default rendering of the day header, for the `Week` scope.
 
     Calendar.new
-        { period = Date.fromParts 2024 Time.Feb 22
+        { period = Date.fromCalendarDate 2024 Time.Feb 22
         , scope = Calendar.Month
         }
         |> Calendar.withViewDayOfWeekHeader
@@ -326,11 +333,32 @@ withViewDayOfWeekHeader viewDayOfWeekHeader (Config options) =
         }
 
 
+{-| Allows for placing things like multi-day events on the calendar,
+spaning across multiple grid cells.
+
+    Calendar.new
+        { period = Date.fromCalendarDate 2024 Time.Feb 22
+        , scope = Calendar.Month
+        }
+        |> Calendar.withViewMultiDayEvent
+            [-- Your custom event rendering here
+            ]
+        |> Calendar.view
+
+-}
+withViewMultiDayEvent : List (Html msg) -> Config msg -> Config msg
+withViewMultiDayEvent viewMultiDayEvents (Config options) =
+    Config
+        { options
+            | viewMultiDayEvents = Just viewMultiDayEvents
+        }
+
+
 {-| Renders your `Config` to `Html`.
 If you want to customize the rendering,use one of the various `withView...` functions.
 
     Calendar.new
-        { period = Date.fromParts 2024 Time.Feb 22
+        { period = Date.fromCalendarDate 2024 Time.Feb 22
         , scope = Calendar.Month
         }
         |> Calendar.view
@@ -346,12 +374,29 @@ view (Config options) =
             viewWeek options
 
         Month ->
+            let
+                weeks : Int
+                weeks =
+                    options
+                        |> monthDateRange
+                        |> List.length
+                        |> (\count -> ceiling (toFloat count / 7))
+            in
             Html.div
                 [ Html.Attributes.style "display" "grid"
                 , Html.Attributes.style "grid-template-columns" "repeat(7, 1fr)"
+                , Html.Attributes.style "grid-template-rows" ("min-content repeat(" ++ String.fromInt weeks ++ ", 1fr)")
+                , Html.Attributes.style "width" "100%"
                 ]
                 (viewDaysOfWeek options
                     ++ viewMonthDays options
+                    ++ (case options.viewMultiDayEvents of
+                            Just viewMultiDayEvents ->
+                                viewMultiDayEvents
+
+                            Nothing ->
+                                []
+                       )
                 )
 
         Year ->
@@ -702,15 +747,15 @@ viewMonthDaysOfYear options month =
 
 viewMonthDayOfYear : InternalConfig msg -> Time.Month -> Date -> Html msg
 viewMonthDayOfYear options month date =
-    Html.div
-        [ Html.Attributes.style "aspect-ratio" "1"
-        ]
-        [ case options.viewDayOfMonthOfYear of
-            Just viewDayOfMonthOfYear ->
-                viewDayOfMonthOfYear month date
+    case options.viewDayOfMonthOfYear of
+        Just viewDayOfMonthOfYear ->
+            viewDayOfMonthOfYear month date
 
-            Nothing ->
-                if Date.month date == month then
+        Nothing ->
+            Html.div
+                [ Html.Attributes.style "min-width" "0"
+                ]
+                [ if Date.month date == month then
                     Html.div
                         [ Html.Attributes.style "border" "1px solid black"
                         , Html.Attributes.style "width" "100%"
@@ -721,7 +766,7 @@ viewMonthDayOfYear options month date =
                         ]
                         [ Html.text (String.fromInt (Date.day date)) ]
 
-                else
+                  else
                     Html.div
                         [ Html.Attributes.style "border" "1px solid black"
                         , Html.Attributes.style "width" "100%"
@@ -729,22 +774,24 @@ viewMonthDayOfYear options month date =
                         , Html.Attributes.style "background" "lightgray"
                         ]
                         []
-        ]
+                ]
 
 
 viewDaysOfWeek : InternalConfig msg -> List (Html msg)
 viewDaysOfWeek options =
     options.weekStartsOn
         |> daysOfWeek
-        |> List.map
-            (\weekday ->
+        |> List.indexedMap
+            (\index weekday ->
                 case options.viewWeekdayHeader of
                     Just viewWeekdayHeader ->
-                        viewWeekdayHeader weekday
+                        viewWeekdayHeader index weekday
 
                     Nothing ->
                         Html.div
                             [ Html.Attributes.style "border" "1px solid black"
+                            , Html.Attributes.style "grid-row" "1"
+                            , Html.Attributes.style "grid-column" (String.fromInt (index + 1))
                             ]
                             [ Html.text (weekdayToShortLabel weekday) ]
             )
@@ -827,6 +874,13 @@ weekdayToLabel weekday =
 
 viewMonthDays : InternalConfig msg -> List (Html msg)
 viewMonthDays options =
+    options
+        |> monthDateRange
+        |> List.indexedMap (viewMonthDay options)
+
+
+monthDateRange : InternalConfig msg -> List Date
+monthDateRange options =
     let
         firstDay =
             options.period
@@ -840,7 +894,6 @@ viewMonthDays options =
                 |> Date.add Date.Days 1
     in
     Date.range Date.Day 1 firstDay lastDate
-        |> List.map (viewMonthDay options)
 
 
 startOfWeek : Time.Weekday -> Date.Interval
@@ -893,17 +946,26 @@ endOfWeek weekday =
             Date.Saturday
 
 
-viewMonthDay : InternalConfig msg -> Date -> Html msg
-viewMonthDay options date =
-    Html.div
-        [ Html.Attributes.style "aspect-ratio" "1"
-        ]
-        [ case options.viewDayOfMonth of
-            Just viewDayOfMonth ->
-                viewDayOfMonth date
+viewMonthDay : InternalConfig msg -> Int -> Date -> Html msg
+viewMonthDay options index date =
+    let
+        column =
+            modBy 7 index + 1
 
-            Nothing ->
-                Html.div
+        row =
+            (index // 7) + 2
+    in
+    case options.viewDayOfMonth of
+        Just viewDayOfMonth ->
+            viewDayOfMonth { column = column, row = row } date
+
+        Nothing ->
+            Html.div
+                [ Html.Attributes.style "min-width" "0"
+                , Html.Attributes.style "grid-column" (String.fromInt column)
+                , Html.Attributes.style "grid-row" (String.fromInt row)
+                ]
+                [ Html.div
                     [ Html.Attributes.style "border" "1px solid black"
                     , Html.Attributes.style "width" "100%"
                     , Html.Attributes.style "height" "100%"
@@ -912,7 +974,7 @@ viewMonthDay options date =
                     , Html.Attributes.style "align-items" "center"
                     ]
                     [ Html.text (String.fromInt (Date.day date)) ]
-        ]
+                ]
 
 
 
@@ -931,6 +993,13 @@ ceilingMonth date =
 
 {-| Get the first and last day of the week that the given date is in,
 relative to the start day of the week.
+
+    import Date
+    import Time
+
+    Calendar.weekBounds Time.Sun (Date.fromCalendarDate 2024 Time.Apr 1)
+    --> (Date.fromCalendarDate 2024 Time.Mar 31, Date.fromCalendarDate 2024 Time.Apr 6)
+
 -}
 weekBounds : Time.Weekday -> Date -> ( Date, Date )
 weekBounds weekStartsOn date =
@@ -944,3 +1013,80 @@ weekBounds weekStartsOn date =
                 |> Date.ceiling (endOfWeek weekStartsOn)
     in
     ( start, end )
+
+
+{-| Get the first and last day of the calendar month that the given date is in.
+E.g. in April 2024 the 1st is on a Monday and the 30th is on a Tuesday. If the
+first day of the week is Sunday then the start date will be 2024-03-31 and the
+end date will be 2024-05-04.
+
+    import Date
+    import Time
+
+    Calendar.calendarMonthBounds Time.Sun (Date.fromCalendarDate 2024 Time.Apr 1)
+    --> ( Date.fromCalendarDate  2024 Time.Mar 31, Date.fromCalendarDate  2024 Time.May 4 )
+
+-}
+calendarMonthBounds : Time.Weekday -> Date -> ( Date, Date )
+calendarMonthBounds weekStartsOn date =
+    let
+        start =
+            date
+                |> Date.floor Date.Month
+                |> Date.floor (startOfWeek weekStartsOn)
+
+        end =
+            date
+                |> ceilingMonth
+                |> Date.ceiling (endOfWeek weekStartsOn)
+    in
+    ( start, end )
+
+
+{-| Get the row and column of the given date in a calendar month view.
+Useful for placing content in the calendar grid.
+
+    import Date
+    import Time
+
+    Calendar.toRowAndColumn Time.Sun (Date.fromCalendarDate 2024 Time.Apr 15)
+    --> { row = 4, column = 2 }
+
+-}
+toRowAndColumn : Time.Weekday -> Date -> { column : Int, row : Int }
+toRowAndColumn weekStartsOn date =
+    let
+        ( start, end ) =
+            calendarMonthBounds weekStartsOn date
+
+        index =
+            Date.range Date.Day 1 start end
+                |> findIndex ((==) date)
+                |> Maybe.withDefault 0
+
+        column =
+            modBy 7 index + 1
+
+        row =
+            (index // 7) + 2
+    in
+    { column = column, row = row }
+
+
+findIndex : (a -> Bool) -> List a -> Maybe Int
+findIndex =
+    findIndexHelp 0
+
+
+findIndexHelp : Int -> (a -> Bool) -> List a -> Maybe Int
+findIndexHelp index predicate list =
+    case list of
+        [] ->
+            Nothing
+
+        x :: xs ->
+            if predicate x then
+                Just index
+
+            else
+                findIndexHelp (index + 1) predicate xs

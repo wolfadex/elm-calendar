@@ -6,6 +6,7 @@ import Date exposing (Date)
 import Html exposing (Html)
 import Html.Attributes
 import Html.Events
+import List.Extra
 import Task
 import Time
 
@@ -330,6 +331,7 @@ view model =
             |> applyIf model.customWeekdayHeader (Calendar.withViewWeekdayHeader viewWeekdayHeaderCustom)
             |> applyIf model.customMonthHeader (Calendar.withViewMonthHeader (viewMonthHeaderCustom model.selectedDate))
             |> Calendar.withWeekStartsOn Time.Sun
+            |> Calendar.withViewMultiDayEvent (viewCustomEvent model.period)
             |> Calendar.view
             |> (\cal ->
                     let
@@ -392,6 +394,136 @@ view model =
             ]
         ]
     }
+
+
+shortEvent =
+    { title = "Short Event"
+    , filter = \period day -> Date.month day == Date.month period && Date.day day >= 3 && Date.day day <= 5
+    , color = "coral"
+    }
+
+
+longEvent =
+    { title = "Long Event"
+    , filter = \period day -> Date.month day == Date.month period && Date.day day >= 15 && Date.day day <= 29
+    , color = "aqua"
+    }
+
+
+events =
+    [ shortEvent, longEvent ]
+
+
+viewCustomEvent : Date -> List (Html Msg)
+viewCustomEvent focalPeriod =
+    List.concatMap
+        (viewEvent focalPeriod)
+        events
+
+
+viewEvent focalPeriod event =
+    let
+        ( start, end ) =
+            Calendar.calendarMonthBounds Time.Sun focalPeriod
+
+        rowsAndColumns : List { row : Int, columnStart : Int, columnEnd : Int }
+        rowsAndColumns =
+            Date.range Date.Day 1 start end
+                |> List.filter (event.filter focalPeriod)
+                |> List.map (Calendar.toRowAndColumn Time.Sun)
+                |> List.sortBy .row
+                |> List.Extra.groupWhile (\a b -> a.row == b.row)
+                |> List.map
+                    (\( first, rest ) ->
+                        let
+                            columns =
+                                (first :: rest)
+                                    |> List.map .column
+                        in
+                        { row = first.row
+                        , columnStart =
+                            columns
+                                |> List.minimum
+                                |> Maybe.withDefault first.column
+                        , columnEnd =
+                            columns
+                                |> List.maximum
+                                |> Maybe.withDefault first.column
+                        }
+                    )
+
+        rowCount =
+            List.length rowsAndColumns
+
+        beginingStyles =
+            [ Html.Attributes.style "border-top-left-radius" "0.25rem"
+            , Html.Attributes.style "border-bottom-left-radius" "0.25rem"
+            , Html.Attributes.style "margin-left" "5px"
+            ]
+
+        middleEndStyles =
+            [ Html.Attributes.style "border-right-width" "0"
+            , Html.Attributes.style "margin-right" "1px"
+            ]
+
+        middleStartStyles =
+            [ Html.Attributes.style "border-left-width" "0"
+            , Html.Attributes.style "margin-left" "1px"
+            ]
+
+        endingStyles =
+            [ Html.Attributes.style "border-top-right-radius" "0.25rem"
+            , Html.Attributes.style "border-bottom-right-radius" "0.25rem"
+            , Html.Attributes.style "margin-right" "5px"
+            ]
+    in
+    List.indexedMap
+        (\index { row, columnStart, columnEnd } ->
+            Html.div
+                ([ Html.Attributes.style "background" event.color
+                 , Html.Attributes.style "padding" "0.25rem 0.5rem"
+                 , Html.Attributes.style "grid-row" (String.fromInt row)
+                 , Html.Attributes.style "grid-column" (String.fromInt columnStart ++ " / " ++ String.fromInt (columnEnd + 1))
+                 , Html.Attributes.style "margin-top" "2rem"
+                 , Html.Attributes.style "margin-bottom" "3px"
+                 , Html.Attributes.style "border-style" "solid"
+                 , Html.Attributes.style "border-color" event.color
+                 , Html.Attributes.style "border-width" "2px"
+                 ]
+                    ++ (if index == 0 then
+                            beginingStyles
+
+                        else
+                            []
+                       )
+                    ++ (if index == rowCount - 1 then
+                            endingStyles
+
+                        else
+                            []
+                       )
+                    ++ (if index > 0 && index < rowCount - 1 then
+                            middleEndStyles ++ middleStartStyles
+
+                        else
+                            []
+                       )
+                    ++ (if index == 0 && index < rowCount - 1 then
+                            middleEndStyles
+
+                        else
+                            []
+                       )
+                    ++ (if index == rowCount - 1 && index > 0 then
+                            middleStartStyles
+
+                        else
+                            []
+                       )
+                )
+                [ Html.text event.title ]
+        )
+        rowsAndColumns
 
 
 monthToLabel : Time.Month -> String
@@ -478,13 +610,19 @@ monthToShortLabel month =
 -- Custom view functions
 
 
-viewDayOfMonthCustom : Date -> Date -> Html Msg
-viewDayOfMonthCustom today date =
+viewDayOfMonthCustom : Date -> { column : Int, row : Int } -> Date -> Html Msg
+viewDayOfMonthCustom today { column, row } date =
     Html.div
         [ Html.Attributes.style "border" "1px solid black"
         , Html.Attributes.style "width" "100%"
         , Html.Attributes.style "height" "100%"
+        , Html.Attributes.style "min-height" "4rem"
         , Html.Attributes.style "padding" "3px"
+
+        -- These styles help with grid layout and layering events on top of the grid
+        , Html.Attributes.style "min-width" "0"
+        , Html.Attributes.style "grid-column" (String.fromInt column)
+        , Html.Attributes.style "grid-row" (String.fromInt row)
         ]
         [ Html.div
             [ Html.Attributes.style "display" "flex"
@@ -517,6 +655,17 @@ viewDayOfMonthCustom today date =
                 [ Html.text (String.fromInt (Date.day date))
                 ]
             ]
+        , if Date.day date == 7 then
+            Html.div
+                [ Html.Attributes.style "background" "#fffb00"
+                , Html.Attributes.style "padding" "0.25rem 0.5rem"
+                , Html.Attributes.style "border-radius" "0.25rem"
+                , Html.Attributes.style "border" "2px solid #fffb00"
+                ]
+                [ Html.text "Special event!" ]
+
+          else
+            Html.text ""
         ]
 
 
@@ -527,6 +676,7 @@ viewDayOfMonthOfYearCustom today month date =
             [ Html.Attributes.style "border" "1px solid black"
             , Html.Attributes.style "width" "100%"
             , Html.Attributes.style "height" "100%"
+            , Html.Attributes.style "min-height" "4rem"
             , Html.Attributes.style "padding" "3px"
             ]
             [ Html.div
@@ -560,6 +710,17 @@ viewDayOfMonthOfYearCustom today month date =
                     [ Html.text (String.fromInt (Date.day date))
                     ]
                 ]
+            , if Date.day date == 7 then
+                Html.div
+                    [ Html.Attributes.style "background" "#fffb00"
+                    , Html.Attributes.style "padding" "0.25rem 0.5rem"
+                    , Html.Attributes.style "border-radius" "0.25rem"
+                    , Html.Attributes.style "border" "2px solid #fffb00"
+                    ]
+                    [ Html.text "Special event!" ]
+
+              else
+                Html.text ""
             ]
 
     else
@@ -572,8 +733,8 @@ viewDayOfMonthOfYearCustom today month date =
             []
 
 
-viewWeekdayHeaderCustom : Time.Weekday -> Html Msg
-viewWeekdayHeaderCustom weekday =
+viewWeekdayHeaderCustom : Int -> Time.Weekday -> Html Msg
+viewWeekdayHeaderCustom columnIndex weekday =
     Html.div
         [ Html.Attributes.style "width" "100%"
         , Html.Attributes.style "text-align" "center"

@@ -75,4 +75,7 @@ config =
                     |> Review.Rule.ignoreErrorsForDirectories
                         [ "tests/VerifyExamples" -- this is a generated folder
                         ]
+                    |> Review.Rule.ignoreErrorsForFiles
+                        [ "tests/DocumentationCodeSnippetTest.elm" -- this is a generated file
+                        ]
             )

@@ -1,0 +1,11 @@
+[
+  {
+    "command": ["npm", "run", "dev:example"]
+  },
+  {
+    "command": ["npm", "run", "dev:test"]
+  },
+  {
+    "command": ["npm", "run", "dev:review"]
+  }
+]

@@ -1,4 +1,4 @@
-# `replaceme` [![Build Status](https://github.com/REPLACEME-AUTHOR-SLASH-REPO/workflows/CI/badge.svg)](https://github.com/REPLACEME-AUTHOR-SLASH-REPO/actions?query=branch%3Amain)
+# `elm-calendar` [![Build Status](https://github.com/wolfadex/elm-calendar/workflows/CI/badge.svg)](https://github.com/wolfadex/elm-calendar/actions?query=branch%3Amain)
 
 ## What this repo includes
 

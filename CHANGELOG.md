@@ -1,7 +1,7 @@
-# Changelog [![Elm package](https://img.shields.io/elm-package/v/REPLACEME-AUTHOR-SLASH-REPO.svg)](https://package.elm-lang.org/packages/REPLACEME-AUTHOR-SLASH-REPO/latest/)
+# Changelog [![Elm package](https://img.shields.io/elm-package/v/wolfadex/elm-calendar.svg)](https://package.elm-lang.org/packages/wolfadex/elm-calendar/latest/)
 
 All notable changes to
-[the `REPLACEME-AUTHOR-SLASH-REPO` elm package](http://package.elm-lang.org/packages/REPLACEME-AUTHOR-SLASH-REPO/latest)
+[the `wolfadex/elm-calendar` elm package](http://package.elm-lang.org/packages/wolfadex/elm-calendar/latest)
 will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)

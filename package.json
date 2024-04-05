@@ -1,18 +1,26 @@
 {
-  "name": "REPLACEME-AUTHOR-SLASH-REPO",
+  "name": "wolfadex/elm-calendar",
   "version": "0.0.1",
-  "description": "REPLACEME",
-  "devDependencies": {
-    "elm-review": "^2.10.3",
-    "elm-test": "^0.19.1-revision9",
-    "elm-tooling": "^1.15.0",
-    "elm-verify-examples": "^6.0.3",
-    "prettier": "^3.2.5"
-  },
+  "description": "A package for viewing a calendar of events",
+  "author": "Wolfgang Schuster",
+  "license": "BSD-3-Clause",
   "scripts": {
     "test": "elm-verify-examples --run-tests && elm-test",
-    "postinstall": "elm-tooling install"
+    "dev": "run-pty run-pty.json",
+    "dev:example": "elm-watch hot",
+    "dev:test": "elm-test --watch",
+    "dev:review": "elm-review --watch --fix"
   },
-  "author": "REPLACEME",
-  "license": "BSD-3-Clause"
+  "devDependencies": {
+    "@lydell/elm-json": "0.2.13-1",
+    "elm": "0.19.1-6",
+    "elm-format": "0.8.7",
+    "elm-review": "2.11.1",
+    "elm-test": "0.19.1-revision12",
+    "elm-tooling": "1.15.1",
+    "elm-verify-examples": "6.0.3",
+    "elm-watch": "^2.0.0-beta.2",
+    "prettier": "3.2.5",
+    "run-pty": "^5.0.0"
+  }
 }

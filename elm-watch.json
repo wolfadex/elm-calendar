@@ -1,0 +1,9 @@
+{
+  "targets": {
+    "Example": {
+      "inputs": ["examples/src/Example.elm"],
+      "output": "examples/elm.js"
+    }
+  },
+  "serve": "examples"
+}

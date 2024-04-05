@@ -332,12 +332,27 @@ view model =
             |> Calendar.withWeekStartsOn Time.Sun
             |> Calendar.view
             |> (\cal ->
-                    Html.div
-                        [ Html.Attributes.style "max-height" "70vh"
-                        , Html.Attributes.style "overflow" "auto"
-                        , Html.Attributes.style "border" "3px solid black"
-                        ]
-                        [ cal ]
+                    let
+                        wrapper c =
+                            Html.div
+                                [ Html.Attributes.style "max-height" "70vh"
+                                , Html.Attributes.style "overflow" "auto"
+                                , Html.Attributes.style "border" "3px solid black"
+                                ]
+                                [ c ]
+                    in
+                    case model.scope of
+                        Calendar.Year ->
+                            wrapper cal
+
+                        Calendar.Month ->
+                            wrapper cal
+
+                        Calendar.Week ->
+                            cal
+
+                        Calendar.Day ->
+                            cal
                )
         , Html.br [] []
         , Html.div

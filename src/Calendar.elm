@@ -3,9 +3,11 @@ module Calendar exposing
     , Scope(..)
     , view
     , withWeekStartsOn
+    , with24HourTime
     , withViewDayOfMonth, withViewDayOfMonthOfYear
     , withViewWeekdayHeader
     , withViewMonthHeader
+    , withViewDayHeader
     , weekBounds
     )
 
@@ -23,6 +25,7 @@ module Calendar exposing
 # Modify the general rendering
 
 @docs withWeekStartsOn
+@docs with24HourTime
 
 
 # Custom viewing
@@ -30,6 +33,7 @@ module Calendar exposing
 @docs withViewDayOfMonth, withViewDayOfMonthOfYear
 @docs withViewWeekdayHeader
 @docs withViewMonthHeader
+@docs withViewDayHeader
 
 
 # Helpers
@@ -66,12 +70,14 @@ type alias InternalConfig msg =
 
     -- Layout options
     , weekStartsOn : Time.Weekday
+    , use24HourTime : Bool
 
     -- Custom rendering
     , viewDayOfMonth : Maybe (Date -> Html msg)
     , viewDayOfMonthOfYear : Maybe (Time.Month -> Date -> Html msg)
     , viewWeekdayHeader : Maybe (Time.Weekday -> Html msg)
     , viewMonthHeader : Maybe (Time.Month -> Html msg)
+    , viewDayHeader : Maybe (Time.Weekday -> Html msg)
     }
 
 
@@ -92,10 +98,12 @@ new options =
         { period = options.period
         , scope = options.scope
         , weekStartsOn = Time.Mon
+        , use24HourTime = False
         , viewDayOfMonth = Nothing
         , viewDayOfMonthOfYear = Nothing
         , viewWeekdayHeader = Nothing
         , viewMonthHeader = Nothing
+        , viewDayHeader = Nothing
         }
 
 
@@ -115,6 +123,24 @@ withWeekStartsOn weekday (Config options) =
     Config
         { options
             | weekStartsOn = weekday
+        }
+
+
+{-| Instead of AM & PM display times in 24-hour format.
+
+    Calendar.new
+        { period = Date.fromParts 2022 Time.Feb 22
+        , scope = Calendar.Month
+        }
+        |> Calendar.with24HourTime
+        |> Calendar.view
+
+-}
+with24HourTime : Config msg -> Config msg
+with24HourTime (Config options) =
+    Config
+        { options
+            | use24HourTime = True
         }
 
 
@@ -232,6 +258,48 @@ withViewMonthHeader viewMonthHeader (Config options) =
         }
 
 
+{-| Override the default rendering of the day header, for the `Day` scope.
+
+    Calendar.new
+        { period = Date.fromParts 2024 Time.Feb 22
+        , scope = Calendar.Month
+        }
+        |> Calendar.withViewDayHeader
+            (\weekday ->
+                Html.text <|
+                    case weekday of
+                        Time.Mon ->
+                            "Monday"
+
+                        Time.Tue ->
+                            "Tuesday"
+
+                        Time.Wed ->
+                            "Wednesday"
+
+                        Time.Thu ->
+                            "Thursday"
+
+                        Time.Fri ->
+                            "Friday"
+
+                        Time.Sat ->
+                            "Saturday"
+
+                        Time.Sun ->
+                            "Sunday"
+            )
+        |> Calendar.view
+
+-}
+withViewDayHeader : (Time.Weekday -> Html msg) -> Config msg -> Config msg
+withViewDayHeader viewDayHeader (Config options) =
+    Config
+        { options
+            | viewDayHeader = Just viewDayHeader
+        }
+
+
 {-| Renders your `Config` to `Html`.
 If you want to customize the rendering,use one of the various `withView...` functions.
 
@@ -246,8 +314,60 @@ view : Config msg -> Html msg
 view (Config options) =
     case options.scope of
         Day ->
-            Html.div []
-                [ Html.text "TODO" ]
+            Html.div
+                [ Html.Attributes.style "display" "grid"
+                , Html.Attributes.style "grid-template-columns" "auto 1fr"
+                , Html.Attributes.style "grid-template-rows" "auto 1fr"
+                ]
+                [ Html.div [ Html.Attributes.style "border" "1px solid black" ] []
+                , case options.viewDayHeader of
+                    Just viewDayHeader ->
+                        viewDayHeader (Date.weekday options.period)
+
+                    Nothing ->
+                        Html.div
+                            [ Html.Attributes.style "border" "1px solid black"
+                            , Html.Attributes.style "border-left-width" "0"
+                            , Html.Attributes.style "display" "flex"
+                            , Html.Attributes.style "flex-direction" "column"
+                            , Html.Attributes.style "align-items" "center"
+                            , Html.Attributes.style "justify-content" "center"
+                            , Html.Attributes.style "padding" "3px"
+                            ]
+                            [ options.period
+                                |> Date.weekday
+                                |> weekdayToLabel
+                                |> Html.text
+                            ]
+                , Html.div
+                    [ Html.Attributes.style "border" "1px solid black"
+                    , Html.Attributes.style "border-top-width" "0"
+                    , Html.Attributes.style "display" "flex"
+                    , Html.Attributes.style "flex-direction" "column"
+                    , Html.Attributes.style "align-items" "center"
+                    , Html.Attributes.style "justify-content" "center"
+                    , Html.Attributes.style "padding" "3px"
+                    , Html.Attributes.style "border-bottom-style" "double"
+                    ]
+                    [ Html.text "all-day" ]
+                , Html.div
+                    [ Html.Attributes.style "border" "1px solid black"
+                    , Html.Attributes.style "border-top-width" "0"
+                    , Html.Attributes.style "border-left-width" "0"
+                    , Html.Attributes.style "min-height" "3rem"
+                    , Html.Attributes.style "border-bottom-style" "double"
+                    ]
+                    []
+                , allHours
+                    |> List.concatMap (viewHour options)
+                    |> Html.div
+                        [ Html.Attributes.style "display" "grid"
+                        , Html.Attributes.style "grid-template-columns" "subgrid"
+                        , Html.Attributes.style "grid-column" "1 / 3"
+                        , Html.Attributes.style "max-height" "40rem"
+                        , Html.Attributes.style "overflow" "auto"
+                        ]
+                ]
 
         Week ->
             Html.div []
@@ -266,6 +386,52 @@ view (Config options) =
             allMonths
                 |> List.map (viewMonthOfYear options)
                 |> Html.div []
+
+
+allHours : List Int
+allHours =
+    List.range 0 23
+
+
+viewHour : InternalConfig msg -> Int -> List (Html msg)
+viewHour options hour =
+    [ Html.div
+        [ Html.Attributes.style "border-color" "black"
+        , Html.Attributes.style "border-style" "solid"
+        , Html.Attributes.style "border-width" "1px"
+        , Html.Attributes.style "border-top-width" "0"
+        , Html.Attributes.style "display" "flex"
+        , Html.Attributes.style "flex-direction" "column"
+        , Html.Attributes.style "align-items" "flex-end"
+        , Html.Attributes.style "justify-content" "flex-start"
+        , Html.Attributes.style "padding" "3px"
+        ]
+        [ Html.text <|
+            if options.use24HourTime then
+                String.padLeft 2 '0' (String.fromInt hour) ++ ":00"
+
+            else if hour == 0 then
+                "12am"
+
+            else if hour < 12 then
+                String.fromInt hour ++ "am"
+
+            else if hour == 12 then
+                "12pm"
+
+            else
+                String.fromInt (hour - 12) ++ "pm"
+        ]
+    , Html.div
+        [ Html.Attributes.style "border-color" "black"
+        , Html.Attributes.style "border-style" "solid"
+        , Html.Attributes.style "border-width" "1px"
+        , Html.Attributes.style "border-top-width" "0"
+        , Html.Attributes.style "border-left-width" "0"
+        , Html.Attributes.style "min-height" "3rem"
+        ]
+        []
+    ]
 
 
 allMonths : List Time.Month
@@ -412,7 +578,7 @@ viewDaysOfWeek options =
                         Html.div
                             [ Html.Attributes.style "border" "1px solid black"
                             ]
-                            [ Html.text (weekdayToLabel weekday) ]
+                            [ Html.text (weekdayToShortLabel weekday) ]
             )
 
 
@@ -441,8 +607,8 @@ daysOfWeek start =
             [ Time.Sun, Time.Mon, Time.Tue, Time.Wed, Time.Thu, Time.Fri, Time.Sat ]
 
 
-weekdayToLabel : Time.Weekday -> String
-weekdayToLabel weekday =
+weekdayToShortLabel : Time.Weekday -> String
+weekdayToShortLabel weekday =
     case weekday of
         Time.Sun ->
             "Sun"
@@ -464,6 +630,31 @@ weekdayToLabel weekday =
 
         Time.Sat ->
             "Sat"
+
+
+weekdayToLabel : Time.Weekday -> String
+weekdayToLabel weekday =
+    case weekday of
+        Time.Sun ->
+            "Sunday"
+
+        Time.Mon ->
+            "Monday"
+
+        Time.Tue ->
+            "Tuesday"
+
+        Time.Wed ->
+            "Wednesday"
+
+        Time.Thu ->
+            "Thursday"
+
+        Time.Fri ->
+            "Friday"
+
+        Time.Sat ->
+            "Saturday"
 
 
 viewMonthDays : InternalConfig msg -> List (Html msg)

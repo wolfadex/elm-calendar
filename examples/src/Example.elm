@@ -144,7 +144,8 @@ view : Model -> Browser.Document Msg
 view model =
     { title = "Example Calendar"
     , body =
-        [ Html.div
+        [ Html.h1 [] [ Html.text "Elm Calendar" ]
+        , Html.div
             [ Html.Attributes.style "display" "flex"
             ]
             [ Html.div
@@ -175,15 +176,14 @@ view model =
                         , active = model.selectedDate == model.today
                         }
                     ]
-                , Html.h1 [ Html.Attributes.style "text-align" "center" ]
-                    [ case model.scope of
+                , Html.h1 [ Html.Attributes.style "text-align" "center" ] <|
+                    case model.scope of
                         Calendar.Year ->
-                            Html.h1 []
-                                [ model.period
-                                    |> Date.year
-                                    |> String.fromInt
-                                    |> Html.text
-                                ]
+                            [ model.period
+                                |> Date.year
+                                |> String.fromInt
+                                |> Html.text
+                            ]
 
                         Calendar.Month ->
                             let
@@ -192,8 +192,9 @@ view model =
                                         |> Date.month
                                         |> monthToLabel
                             in
-                            (month ++ " " ++ String.fromInt (Date.year model.period))
+                            [ (month ++ " " ++ String.fromInt (Date.year model.period))
                                 |> Html.text
+                            ]
 
                         Calendar.Week ->
                             let
@@ -220,32 +221,31 @@ view model =
                                     Date.day endDate
                                         |> Date.withOrdinalSuffix
                             in
-                            Html.h3 []
-                                [ (monthToShortLabel startMonth
-                                    ++ " "
-                                    ++ startDay
-                                    ++ (if startYear == endYear then
-                                            ""
-
-                                        else
-                                            ", " ++ String.fromInt startYear
-                                       )
-                                  )
-                                    |> Html.text
-                                , Html.text " — "
-                                , ((if startMonth == endMonth then
+                            [ (monthToShortLabel startMonth
+                                ++ " "
+                                ++ startDay
+                                ++ (if startYear == endYear then
                                         ""
 
                                     else
-                                        monthToShortLabel endMonth
+                                        ", " ++ String.fromInt startYear
                                    )
-                                    ++ " "
-                                    ++ endDay
-                                    ++ ", "
-                                    ++ String.fromInt endYear
-                                  )
-                                    |> Html.text
-                                ]
+                              )
+                                |> Html.text
+                            , Html.text " — "
+                            , ((if startMonth == endMonth then
+                                    ""
+
+                                else
+                                    monthToShortLabel endMonth
+                               )
+                                ++ " "
+                                ++ endDay
+                                ++ ", "
+                                ++ String.fromInt endYear
+                              )
+                                |> Html.text
+                            ]
 
                         Calendar.Day ->
                             let
@@ -264,11 +264,9 @@ view model =
                                         |> Date.day
                                         |> Date.withOrdinalSuffix
                             in
-                            Html.h1 []
-                                [ (year ++ " " ++ month ++ " " ++ day)
-                                    |> Html.text
-                                ]
-                    ]
+                            [ (year ++ " " ++ month ++ " " ++ day)
+                                |> Html.text
+                            ]
                 , viewButtonGroup
                     [ Html.Attributes.style "justify-content" "flex-end"
                     ]
@@ -334,17 +332,12 @@ view model =
             |> Calendar.withWeekStartsOn Time.Sun
             |> Calendar.view
             |> (\cal ->
-                    case model.scope of
-                        Calendar.Year ->
-                            Html.div
-                                [ Html.Attributes.style "max-height" "60vh"
-                                , Html.Attributes.style "overflow" "auto"
-                                , Html.Attributes.style "border" "3px solid black"
-                                ]
-                                [ cal ]
-
-                        _ ->
-                            cal
+                    Html.div
+                        [ Html.Attributes.style "max-height" "70vh"
+                        , Html.Attributes.style "overflow" "auto"
+                        , Html.Attributes.style "border" "3px solid black"
+                        ]
+                        [ cal ]
                )
         , Html.br [] []
         , Html.div

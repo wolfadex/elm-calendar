@@ -247,11 +247,11 @@ view (Config options) =
     case options.scope of
         Day ->
             Html.div []
-                []
+                [ Html.text "TODO" ]
 
         Week ->
             Html.div []
-                []
+                [ Html.text "TODO" ]
 
         Month ->
             Html.div

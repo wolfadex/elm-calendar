@@ -666,6 +666,14 @@ allMonths =
 
 viewMonthOfYear : InternalConfig msg -> Time.Month -> Html msg
 viewMonthOfYear options month =
+    let
+        weeks : Int
+        weeks =
+            options
+                |> monthDateRange
+                |> List.length
+                |> (\count -> ceiling (toFloat count / 7))
+    in
     Html.div []
         [ case options.viewMonthHeader of
             Just viewMonthHeader ->
@@ -677,6 +685,8 @@ viewMonthOfYear options month =
         , Html.div
             [ Html.Attributes.style "display" "grid"
             , Html.Attributes.style "grid-template-columns" "repeat(7, 1fr)"
+            , Html.Attributes.style "grid-template-rows" ("min-content repeat(" ++ String.fromInt weeks ++ ", 1fr)")
+            , Html.Attributes.style "width" "100%"
             ]
             (viewDaysOfWeek options
                 ++ viewMonthDaysOfYear options month
@@ -730,18 +740,10 @@ viewMonthDaysOfYear options month =
         period =
             Date.fromCalendarDate (Date.year options.period) month 1
 
-        firstDay =
-            period
-                |> Date.floor Date.Month
-                |> Date.floor (startOfWeek options.weekStartsOn)
-
-        lastDate =
-            period
-                |> ceilingMonth
-                |> Date.ceiling (endOfWeek options.weekStartsOn)
-                |> Date.add Date.Days 1
+        ( firstDate, lastDate ) =
+            calendarMonthBounds options.weekStartsOn period
     in
-    Date.range Date.Day 1 firstDay lastDate
+    Date.range Date.Day 1 firstDate lastDate
         |> List.map (viewMonthDayOfYear options month)
 
 
@@ -882,18 +884,10 @@ viewMonthDays options =
 monthDateRange : InternalConfig msg -> List Date
 monthDateRange options =
     let
-        firstDay =
-            options.period
-                |> Date.floor Date.Month
-                |> Date.floor (startOfWeek options.weekStartsOn)
-
-        lastDate =
-            options.period
-                |> ceilingMonth
-                |> Date.ceiling (endOfWeek options.weekStartsOn)
-                |> Date.add Date.Days 1
+        ( firstDate, lastDate ) =
+            calendarMonthBounds options.weekStartsOn options.period
     in
-    Date.range Date.Day 1 firstDay lastDate
+    Date.range Date.Day 1 firstDate lastDate
 
 
 startOfWeek : Time.Weekday -> Date.Interval

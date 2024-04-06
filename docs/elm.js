@@ -2719,7 +2719,7 @@ var _VirtualDom_mapEventTuple = F2(function(func, tuple)
 var _VirtualDom_mapEventRecord = F2(function(func, record)
 {
 	return {
-		z: func(record.z),
+		x: func(record.x),
 		ar: record.ar,
 		ao: record.ao
 	}
@@ -2989,7 +2989,7 @@ function _VirtualDom_makeCallback(eventNode, initialHandler)
 		// 3 = Custom
 
 		var value = result.a;
-		var message = !tag ? value : tag < 3 ? value.a : value.z;
+		var message = !tag ? value : tag < 3 ? value.a : value.x;
 		var stopPropagation = tag == 1 ? value.b : tag == 3 && value.ar;
 		var currentEventNode = (
 			stopPropagation && event.stopPropagation(),
@@ -5469,12 +5469,12 @@ var $justinmimbs$date$Date$today = A3($elm$core$Task$map2, $justinmimbs$date$Dat
 var $author$project$Example$init = function (_v0) {
 	return _Utils_Tuple2(
 		{
-			y: false,
+			w: false,
+			B: false,
 			C: false,
-			D: false,
-			t: A3($justinmimbs$date$Date$fromCalendarDate, 2024, 1, 22),
+			y: A3($justinmimbs$date$Date$fromCalendarDate, 2024, 1, 22),
 			Z: 2,
-			u: A3($justinmimbs$date$Date$fromCalendarDate, 2024, 1, 22),
+			t: A3($justinmimbs$date$Date$fromCalendarDate, 2024, 1, 22),
 			N: A3($justinmimbs$date$Date$fromCalendarDate, 2024, 1, 22)
 		},
 		A2($elm$core$Task$perform, $author$project$Example$CurrentDateReceived, $justinmimbs$date$Date$today));
@@ -5637,31 +5637,31 @@ var $author$project$Example$update = F2(
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{t: today, u: today, N: today}),
+						{y: today, t: today, N: today}),
 					$elm$core$Platform$Cmd$none);
 			case 1:
 				var date = msg.a;
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{t: date, u: date}),
+						{y: date, t: date}),
 					$elm$core$Platform$Cmd$none);
 			case 5:
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
 						{
-							t: function () {
+							y: function () {
 								var _v1 = model.Z;
 								switch (_v1) {
 									case 3:
-										return A3($justinmimbs$date$Date$add, 0, -1, model.t);
+										return A3($justinmimbs$date$Date$add, 0, -1, model.y);
 									case 2:
-										return A3($justinmimbs$date$Date$add, 1, -1, model.t);
+										return A3($justinmimbs$date$Date$add, 1, -1, model.y);
 									case 1:
-										return A3($justinmimbs$date$Date$add, 2, -1, model.t);
+										return A3($justinmimbs$date$Date$add, 2, -1, model.y);
 									default:
-										return A3($justinmimbs$date$Date$add, 3, -1, model.t);
+										return A3($justinmimbs$date$Date$add, 3, -1, model.y);
 								}
 							}()
 						}),
@@ -5671,17 +5671,17 @@ var $author$project$Example$update = F2(
 					_Utils_update(
 						model,
 						{
-							t: function () {
+							y: function () {
 								var _v2 = model.Z;
 								switch (_v2) {
 									case 3:
-										return A3($justinmimbs$date$Date$add, 0, 1, model.t);
+										return A3($justinmimbs$date$Date$add, 0, 1, model.y);
 									case 2:
-										return A3($justinmimbs$date$Date$add, 1, 1, model.t);
+										return A3($justinmimbs$date$Date$add, 1, 1, model.y);
 									case 1:
-										return A3($justinmimbs$date$Date$add, 2, 1, model.t);
+										return A3($justinmimbs$date$Date$add, 2, 1, model.y);
 									default:
-										return A3($justinmimbs$date$Date$add, 3, 1, model.t);
+										return A3($justinmimbs$date$Date$add, 3, 1, model.y);
 								}
 							}()
 						}),
@@ -5690,7 +5690,7 @@ var $author$project$Example$update = F2(
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{t: model.N, u: model.N}),
+						{y: model.N, t: model.N}),
 					$elm$core$Platform$Cmd$none);
 			case 8:
 				var scope = msg.a;
@@ -5703,19 +5703,19 @@ var $author$project$Example$update = F2(
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{y: !model.y}),
+						{w: !model.w}),
 					$elm$core$Platform$Cmd$none);
 			case 3:
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{D: !model.D}),
+						{C: !model.C}),
 					$elm$core$Platform$Cmd$none);
 			default:
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{C: !model.C}),
+						{B: !model.B}),
 					$elm$core$Platform$Cmd$none);
 		}
 	});
@@ -5815,7 +5815,7 @@ var $author$project$Example$monthToShortLabel = function (month) {
 var $author$project$Calendar$Config = $elm$core$Basics$identity;
 var $elm$time$Time$Mon = 0;
 var $author$project$Calendar$new = function (options) {
-	return {t: options.t, Z: options.Z, W: false, aa: $elm$core$Maybe$Nothing, ab: $elm$core$Maybe$Nothing, ac: $elm$core$Maybe$Nothing, ad: $elm$core$Maybe$Nothing, ae: $elm$core$Maybe$Nothing, af: $elm$core$Maybe$Nothing, ag: $elm$core$Maybe$Nothing, w: 0};
+	return {y: options.y, Z: options.Z, W: false, aa: $elm$core$Maybe$Nothing, ab: $elm$core$Maybe$Nothing, ac: $elm$core$Maybe$Nothing, ad: $elm$core$Maybe$Nothing, ae: $elm$core$Maybe$Nothing, af: $elm$core$Maybe$Nothing, ag: $elm$core$Maybe$Nothing, H: 0};
 };
 var $elm$virtual_dom$VirtualDom$style = _VirtualDom_style;
 var $elm$html$Html$Attributes$style = $elm$virtual_dom$VirtualDom$style;
@@ -5978,6 +5978,36 @@ var $author$project$Calendar$endOfWeek = function (weekday) {
 			return 9;
 	}
 };
+var $author$project$Calendar$startOfWeek = function (weekday) {
+	switch (weekday) {
+		case 0:
+			return 4;
+		case 1:
+			return 5;
+		case 2:
+			return 6;
+		case 3:
+			return 7;
+		case 4:
+			return 8;
+		case 5:
+			return 9;
+		default:
+			return 10;
+	}
+};
+var $author$project$Calendar$calendarMonthBounds = F2(
+	function (weekStartsOn, date) {
+		var start = A2(
+			$justinmimbs$date$Date$floor,
+			$author$project$Calendar$startOfWeek(weekStartsOn),
+			A2($justinmimbs$date$Date$floor, 2, date));
+		var end = A2(
+			$justinmimbs$date$Date$ceiling,
+			$author$project$Calendar$endOfWeek(weekStartsOn),
+			$author$project$Calendar$ceilingMonth(date));
+		return _Utils_Tuple2(start, end);
+	});
 var $justinmimbs$date$Date$rangeHelp = F5(
 	function (unit, step, until, revList, current) {
 		rangeHelp:
@@ -6018,38 +6048,11 @@ var $justinmimbs$date$Date$range = F4(
 			_List_Nil,
 			first) : _List_Nil;
 	});
-var $author$project$Calendar$startOfWeek = function (weekday) {
-	switch (weekday) {
-		case 0:
-			return 4;
-		case 1:
-			return 5;
-		case 2:
-			return 6;
-		case 3:
-			return 7;
-		case 4:
-			return 8;
-		case 5:
-			return 9;
-		default:
-			return 10;
-	}
-};
 var $author$project$Calendar$monthDateRange = function (options) {
-	var lastDate = A3(
-		$justinmimbs$date$Date$add,
-		3,
-		1,
-		A2(
-			$justinmimbs$date$Date$ceiling,
-			$author$project$Calendar$endOfWeek(options.w),
-			$author$project$Calendar$ceilingMonth(options.t)));
-	var firstDay = A2(
-		$justinmimbs$date$Date$floor,
-		$author$project$Calendar$startOfWeek(options.w),
-		A2($justinmimbs$date$Date$floor, 2, options.t));
-	return A4($justinmimbs$date$Date$range, 11, 1, firstDay, lastDate);
+	var _v0 = A2($author$project$Calendar$calendarMonthBounds, options.H, options.y);
+	var firstDate = _v0.a;
+	var lastDate = _v0.b;
+	return A4($justinmimbs$date$Date$range, 11, 1, firstDate, lastDate);
 };
 var $author$project$Calendar$allHours = A2($elm$core$List$range, 0, 23);
 var $elm$core$List$append = F2(
@@ -6197,7 +6200,7 @@ var $author$project$Calendar$viewDay = function (options) {
 				if (!_v0.$) {
 					var viewDayHeader = _v0.a;
 					return viewDayHeader(
-						$justinmimbs$date$Date$weekday(options.t));
+						$justinmimbs$date$Date$weekday(options.y));
 				} else {
 					return A2(
 						$elm$html$Html$div,
@@ -6215,7 +6218,7 @@ var $author$project$Calendar$viewDay = function (options) {
 							[
 								$elm$html$Html$text(
 								$author$project$Calendar$weekdayToLabel(
-									$justinmimbs$date$Date$weekday(options.t)))
+									$justinmimbs$date$Date$weekday(options.y)))
 							]));
 				}
 			}(),
@@ -6334,7 +6337,7 @@ var $author$project$Calendar$viewDaysOfWeek = function (options) {
 							]));
 				}
 			}),
-		$author$project$Calendar$daysOfWeek(options.w));
+		$author$project$Calendar$daysOfWeek(options.H));
 };
 var $author$project$Calendar$viewMonthDay = F3(
 	function (options, index, date) {
@@ -6469,28 +6472,24 @@ var $author$project$Calendar$viewMonthDaysOfYear = F2(
 	function (options, month) {
 		var period = A3(
 			$justinmimbs$date$Date$fromCalendarDate,
-			$justinmimbs$date$Date$year(options.t),
+			$justinmimbs$date$Date$year(options.y),
 			month,
 			1);
-		var lastDate = A3(
-			$justinmimbs$date$Date$add,
-			3,
-			1,
-			A2(
-				$justinmimbs$date$Date$ceiling,
-				$author$project$Calendar$endOfWeek(options.w),
-				$author$project$Calendar$ceilingMonth(period)));
-		var firstDay = A2(
-			$justinmimbs$date$Date$floor,
-			$author$project$Calendar$startOfWeek(options.w),
-			A2($justinmimbs$date$Date$floor, 2, period));
+		var _v0 = A2($author$project$Calendar$calendarMonthBounds, options.H, period);
+		var firstDate = _v0.a;
+		var lastDate = _v0.b;
 		return A2(
 			$elm$core$List$map,
 			A2($author$project$Calendar$viewMonthDayOfYear, options, month),
-			A4($justinmimbs$date$Date$range, 11, 1, firstDay, lastDate));
+			A4($justinmimbs$date$Date$range, 11, 1, firstDate, lastDate));
 	});
 var $author$project$Calendar$viewMonthOfYear = F2(
 	function (options, month) {
+		var weeks = function (count) {
+			return $elm$core$Basics$ceiling(count / 7);
+		}(
+			$elm$core$List$length(
+				$author$project$Calendar$monthDateRange(options)));
 		return A2(
 			$elm$html$Html$div,
 			_List_Nil,
@@ -6520,7 +6519,12 @@ var $author$project$Calendar$viewMonthOfYear = F2(
 					_List_fromArray(
 						[
 							A2($elm$html$Html$Attributes$style, 'display', 'grid'),
-							A2($elm$html$Html$Attributes$style, 'grid-template-columns', 'repeat(7, 1fr)')
+							A2($elm$html$Html$Attributes$style, 'grid-template-columns', 'repeat(7, 1fr)'),
+							A2(
+							$elm$html$Html$Attributes$style,
+							'grid-template-rows',
+							'min-content repeat(' + ($elm$core$String$fromInt(weeks) + ', 1fr)')),
+							A2($elm$html$Html$Attributes$style, 'width', '100%')
 						]),
 					_Utils_ap(
 						$author$project$Calendar$viewDaysOfWeek(options),
@@ -6611,7 +6615,7 @@ var $author$project$Calendar$viewWeek = function (options) {
 						_List_Nil)
 					]),
 					function () {
-					var _v0 = A2($author$project$Calendar$weekBounds, options.w, options.t);
+					var _v0 = A2($author$project$Calendar$weekBounds, options.H, options.y);
 					var start = _v0.a;
 					var end = _v0.b;
 					return A2(
@@ -6912,18 +6916,6 @@ var $author$project$Example$shortEvent = {
 };
 var $author$project$Example$events = _List_fromArray(
 	[$author$project$Example$shortEvent, $author$project$Example$longEvent]);
-var $author$project$Calendar$calendarMonthBounds = F2(
-	function (weekStartsOn, date) {
-		var start = A2(
-			$justinmimbs$date$Date$floor,
-			$author$project$Calendar$startOfWeek(weekStartsOn),
-			A2($justinmimbs$date$Date$floor, 2, date));
-		var end = A2(
-			$justinmimbs$date$Date$ceiling,
-			$author$project$Calendar$endOfWeek(weekStartsOn),
-			$author$project$Calendar$ceilingMonth(date));
-		return _Utils_Tuple2(start, end);
-	});
 var $elm$core$List$filter = F2(
 	function (isGood, list) {
 		return A3(
@@ -7488,7 +7480,7 @@ var $author$project$Calendar$withWeekStartsOn = F2(
 		var options = _v0;
 		return _Utils_update(
 			options,
-			{w: weekday});
+			{H: weekday});
 	});
 var $author$project$Example$view = function (model) {
 	return {
@@ -7540,7 +7532,7 @@ var $author$project$Example$view = function (model) {
 											])),
 										$author$project$Example$viewToggleButton(
 										{
-											J: _Utils_eq(model.u, model.N),
+											J: _Utils_eq(model.t, model.N),
 											i: 'Today',
 											k: $author$project$Example$UserClickedTodayPeriod
 										})
@@ -7559,19 +7551,19 @@ var $author$project$Example$view = function (model) {
 												[
 													$elm$html$Html$text(
 													$elm$core$String$fromInt(
-														$justinmimbs$date$Date$year(model.t)))
+														$justinmimbs$date$Date$year(model.y)))
 												]);
 										case 2:
 											var month = $author$project$Example$monthToLabel(
-												$justinmimbs$date$Date$month(model.t));
+												$justinmimbs$date$Date$month(model.y));
 											return _List_fromArray(
 												[
 													$elm$html$Html$text(
 													month + (' ' + $elm$core$String$fromInt(
-														$justinmimbs$date$Date$year(model.t))))
+														$justinmimbs$date$Date$year(model.y))))
 												]);
 										case 1:
-											var _v1 = A2($author$project$Calendar$weekBounds, 6, model.t);
+											var _v1 = A2($author$project$Calendar$weekBounds, 6, model.y);
 											var startDate = _v1.a;
 											var endDate = _v1.b;
 											var endDay = $justinmimbs$date$Date$withOrdinalSuffix(
@@ -7592,11 +7584,11 @@ var $author$project$Example$view = function (model) {
 												]);
 										default:
 											var year = $elm$core$String$fromInt(
-												$justinmimbs$date$Date$year(model.t));
+												$justinmimbs$date$Date$year(model.y));
 											var month = $author$project$Example$monthToLabel(
-												$justinmimbs$date$Date$month(model.t));
+												$justinmimbs$date$Date$month(model.y));
 											var day = $justinmimbs$date$Date$withOrdinalSuffix(
-												$justinmimbs$date$Date$day(model.t));
+												$justinmimbs$date$Date$day(model.y));
 											return _List_fromArray(
 												[
 													$elm$html$Html$text(year + (' ' + (month + (' ' + day))))
@@ -7706,31 +7698,31 @@ var $author$project$Example$view = function (model) {
 				$author$project$Calendar$view(
 					A2(
 						$author$project$Calendar$withViewMultiDayEvent,
-						$author$project$Example$viewCustomEvent(model.t),
+						$author$project$Example$viewCustomEvent(model.y),
 						A2(
 							$author$project$Calendar$withWeekStartsOn,
 							6,
 							A3(
 								$author$project$Example$applyIf,
-								model.C,
+								model.B,
 								$author$project$Calendar$withViewMonthHeader(
-									$author$project$Example$viewMonthHeaderCustom(model.u)),
+									$author$project$Example$viewMonthHeaderCustom(model.t)),
 								A3(
 									$author$project$Example$applyIf,
-									model.D,
+									model.C,
 									$author$project$Calendar$withViewWeekdayHeader($author$project$Example$viewWeekdayHeaderCustom),
 									A3(
 										$author$project$Example$applyIf,
-										model.y,
+										model.w,
 										$author$project$Calendar$withViewDayOfMonthOfYear(
-											$author$project$Example$viewDayOfMonthOfYearCustom(model.u)),
+											$author$project$Example$viewDayOfMonthOfYearCustom(model.t)),
 										A3(
 											$author$project$Example$applyIf,
-											model.y,
+											model.w,
 											$author$project$Calendar$withViewDayOfMonth(
-												$author$project$Example$viewDayOfMonthCustom(model.u)),
+												$author$project$Example$viewDayOfMonthCustom(model.t)),
 											$author$project$Calendar$new(
-												{t: model.t, Z: model.Z}))))))))),
+												{y: model.y, Z: model.Z}))))))))),
 				A2($elm$html$Html$br, _List_Nil, _List_Nil),
 				A2(
 				$elm$html$Html$div,
@@ -7743,20 +7735,20 @@ var $author$project$Example$view = function (model) {
 					[
 						$author$project$Example$viewToggleButton(
 						{
-							J: model.y,
-							i: model.y ? 'Default day of month view' : 'Custom day of month view',
+							J: model.w,
+							i: model.w ? 'Default day of month view' : 'Custom day of month view',
 							k: $author$project$Example$UserClickedCustomDayOfMonth
 						}),
 						$author$project$Example$viewToggleButton(
 						{
-							J: model.D,
-							i: model.D ? 'Default weekday header view' : 'Custom weekday header view',
+							J: model.C,
+							i: model.C ? 'Default weekday header view' : 'Custom weekday header view',
 							k: $author$project$Example$UserClickedCustomWeekdayHeader
 						}),
 						$author$project$Example$viewToggleButton(
 						{
-							J: model.C,
-							i: model.C ? 'Default month header view' : 'Custom month header view',
+							J: model.B,
+							i: model.B ? 'Default month header view' : 'Custom month header view',
 							k: $author$project$Example$UserClickedCustomMonthHeader
 						})
 					]))

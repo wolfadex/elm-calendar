@@ -1,3137 +1,5 @@
-// elm-watch hot {"version":"2.0.0-beta.2","targetName":"Example","webSocketConnection":54787}
-"use strict";
-(() => {
-  // node_modules/tiny-decoders/index.mjs
-  function boolean(value) {
-    if (typeof value !== "boolean") {
-      throw new DecoderError({ tag: "boolean", got: value });
-    }
-    return value;
-  }
-  function number(value) {
-    if (typeof value !== "number") {
-      throw new DecoderError({ tag: "number", got: value });
-    }
-    return value;
-  }
-  function string(value) {
-    if (typeof value !== "string") {
-      throw new DecoderError({ tag: "string", got: value });
-    }
-    return value;
-  }
-  function stringUnion(mapping) {
-    return function stringUnionDecoder(value) {
-      const str = string(value);
-      if (!Object.prototype.hasOwnProperty.call(mapping, str)) {
-        throw new DecoderError({
-          tag: "unknown stringUnion variant",
-          knownVariants: Object.keys(mapping),
-          got: str
-        });
-      }
-      return str;
-    };
-  }
-  function unknownArray(value) {
-    if (!Array.isArray(value)) {
-      throw new DecoderError({ tag: "array", got: value });
-    }
-    return value;
-  }
-  function unknownRecord(value) {
-    if (typeof value !== "object" || value === null || Array.isArray(value)) {
-      throw new DecoderError({ tag: "object", got: value });
-    }
-    return value;
-  }
-  function array(decoder) {
-    return function arrayDecoder(value) {
-      const arr = unknownArray(value);
-      const result = [];
-      for (let index = 0; index < arr.length; index++) {
-        try {
-          result.push(decoder(arr[index]));
-        } catch (error) {
-          throw DecoderError.at(error, index);
-        }
-      }
-      return result;
-    };
-  }
-  function record(decoder) {
-    return function recordDecoder(value) {
-      const object = unknownRecord(value);
-      const keys = Object.keys(object);
-      const result = {};
-      for (const key of keys) {
-        if (key === "__proto__") {
-          continue;
-        }
-        try {
-          result[key] = decoder(object[key]);
-        } catch (error) {
-          throw DecoderError.at(error, key);
-        }
-      }
-      return result;
-    };
-  }
-  function fields(callback, { exact = "allow extra", allow = "object" } = {}) {
-    return function fieldsDecoder(value) {
-      const object = allow === "array" ? unknownArray(value) : unknownRecord(value);
-      const knownFields = /* @__PURE__ */ Object.create(null);
-      function field(key, decoder) {
-        try {
-          const result2 = decoder(object[key]);
-          knownFields[key] = null;
-          return result2;
-        } catch (error) {
-          throw DecoderError.at(error, key);
-        }
-      }
-      const result = callback(field, object);
-      if (exact !== "allow extra") {
-        const unknownFields = Object.keys(object).filter((key) => !Object.prototype.hasOwnProperty.call(knownFields, key));
-        if (unknownFields.length > 0) {
-          throw new DecoderError({
-            tag: "exact fields",
-            knownFields: Object.keys(knownFields),
-            got: unknownFields
-          });
-        }
-      }
-      return result;
-    };
-  }
-  function fieldsAuto(mapping, { exact = "allow extra" } = {}) {
-    return function fieldsAutoDecoder(value) {
-      const object = unknownRecord(value);
-      const keys = Object.keys(mapping);
-      const result = {};
-      for (const key of keys) {
-        if (key === "__proto__") {
-          continue;
-        }
-        const decoder = mapping[key];
-        try {
-          result[key] = decoder(object[key]);
-        } catch (error) {
-          throw DecoderError.at(error, key);
-        }
-      }
-      if (exact !== "allow extra") {
-        const unknownFields = Object.keys(object).filter((key) => !Object.prototype.hasOwnProperty.call(mapping, key));
-        if (unknownFields.length > 0) {
-          throw new DecoderError({
-            tag: "exact fields",
-            knownFields: keys,
-            got: unknownFields
-          });
-        }
-      }
-      return result;
-    };
-  }
-  function fieldsUnion(key, mapping) {
-    return fields(function fieldsUnionFields(field, object) {
-      const tag = field(key, string);
-      if (Object.prototype.hasOwnProperty.call(mapping, tag)) {
-        const decoder = mapping[tag];
-        return decoder(object);
-      }
-      throw new DecoderError({
-        tag: "unknown fieldsUnion tag",
-        knownTags: Object.keys(mapping),
-        got: tag,
-        key
-      });
-    });
-  }
-  function multi(mapping) {
-    return function multiDecoder(value) {
-      if (value === void 0) {
-        if (mapping.undefined !== void 0) {
-          return mapping.undefined(value);
-        }
-      } else if (value === null) {
-        if (mapping.null !== void 0) {
-          return mapping.null(value);
-        }
-      } else if (typeof value === "boolean") {
-        if (mapping.boolean !== void 0) {
-          return mapping.boolean(value);
-        }
-      } else if (typeof value === "number") {
-        if (mapping.number !== void 0) {
-          return mapping.number(value);
-        }
-      } else if (typeof value === "string") {
-        if (mapping.string !== void 0) {
-          return mapping.string(value);
-        }
-      } else if (Array.isArray(value)) {
-        if (mapping.array !== void 0) {
-          return mapping.array(value);
-        }
-      } else {
-        if (mapping.object !== void 0) {
-          return mapping.object(value);
-        }
-      }
-      throw new DecoderError({
-        tag: "unknown multi type",
-        knownTypes: Object.keys(mapping),
-        got: value
-      });
-    };
-  }
-  function optional(decoder, defaultValue) {
-    return function optionalDecoder(value) {
-      if (value === void 0) {
-        return defaultValue;
-      }
-      try {
-        return decoder(value);
-      } catch (error) {
-        const newError = DecoderError.at(error);
-        if (newError.path.length === 0) {
-          newError.optional = true;
-        }
-        throw newError;
-      }
-    };
-  }
-  function chain(decoder, next) {
-    return function chainDecoder(value) {
-      return next(decoder(value));
-    };
-  }
-  function formatDecoderErrorVariant(variant, options) {
-    const formatGot = (value) => {
-      const formatted = repr(value, options);
-      return (options === null || options === void 0 ? void 0 : options.sensitive) === true ? `${formatted}
-(Actual values are hidden in sensitive mode.)` : formatted;
-    };
-    const stringList = (strings) => strings.length === 0 ? "(none)" : strings.map((s) => JSON.stringify(s)).join(", ");
-    const got = (message, value) => value === DecoderError.MISSING_VALUE ? message : `${message}
-Got: ${formatGot(value)}`;
-    switch (variant.tag) {
-      case "boolean":
-      case "number":
-      case "string":
-        return got(`Expected a ${variant.tag}`, variant.got);
-      case "array":
-      case "object":
-        return got(`Expected an ${variant.tag}`, variant.got);
-      case "unknown multi type":
-        return `Expected one of these types: ${variant.knownTypes.length === 0 ? "never" : variant.knownTypes.join(", ")}
-Got: ${formatGot(variant.got)}`;
-      case "unknown fieldsUnion tag":
-        return `Expected one of these tags: ${stringList(variant.knownTags)}
-Got: ${formatGot(variant.got)}`;
-      case "unknown stringUnion variant":
-        return `Expected one of these variants: ${stringList(variant.knownVariants)}
-Got: ${formatGot(variant.got)}`;
-      case "exact fields":
-        return `Expected only these fields: ${stringList(variant.knownFields)}
-Found extra fields: ${formatGot(variant.got).replace(/^\[|\]$/g, "")}`;
-      case "tuple size":
-        return `Expected ${variant.expected} items
-Got: ${variant.got}`;
-      case "custom":
-        return got(variant.message, variant.got);
-    }
-  }
-  var DecoderError = class extends TypeError {
-    constructor({ key, ...params }) {
-      const variant = "tag" in params ? params : { tag: "custom", message: params.message, got: params.value };
-      super(`${formatDecoderErrorVariant(
-        variant,
-        { sensitive: true }
-      )}
-
-For better error messages, see https://github.com/lydell/tiny-decoders#error-messages`);
-      this.path = key === void 0 ? [] : [key];
-      this.variant = variant;
-      this.nullable = false;
-      this.optional = false;
-    }
-    static at(error, key) {
-      if (error instanceof DecoderError) {
-        if (key !== void 0) {
-          error.path.unshift(key);
-        }
-        return error;
-      }
-      return new DecoderError({
-        tag: "custom",
-        message: error instanceof Error ? error.message : String(error),
-        got: DecoderError.MISSING_VALUE,
-        key
-      });
-    }
-    format(options) {
-      const path = this.path.map((part) => `[${JSON.stringify(part)}]`).join("");
-      const nullableString = this.nullable ? " (nullable)" : "";
-      const optionalString = this.optional ? " (optional)" : "";
-      const variant = formatDecoderErrorVariant(this.variant, options);
-      return `At root${path}${nullableString}${optionalString}:
-${variant}`;
-    }
-  };
-  DecoderError.MISSING_VALUE = Symbol("DecoderError.MISSING_VALUE");
-  function repr(value, { recurse = true, maxArrayChildren = 5, maxObjectChildren = 3, maxLength = 100, recurseMaxLength = 20, sensitive = false } = {}) {
-    const type = typeof value;
-    const toStringType = Object.prototype.toString.call(value).replace(/^\[object\s+(.+)\]$/, "$1");
-    try {
-      if (value == null || type === "number" || type === "boolean" || type === "symbol" || toStringType === "RegExp") {
-        return sensitive ? toStringType.toLowerCase() : truncate(String(value), maxLength);
-      }
-      if (type === "string") {
-        return sensitive ? type : truncate(JSON.stringify(value), maxLength);
-      }
-      if (typeof value === "function") {
-        return `function ${truncate(JSON.stringify(value.name), maxLength)}`;
-      }
-      if (Array.isArray(value)) {
-        const arr = value;
-        if (!recurse && arr.length > 0) {
-          return `${toStringType}(${arr.length})`;
-        }
-        const lastIndex = arr.length - 1;
-        const items = [];
-        const end = Math.min(maxArrayChildren - 1, lastIndex);
-        for (let index = 0; index <= end; index++) {
-          const item = index in arr ? repr(arr[index], {
-            recurse: false,
-            maxLength: recurseMaxLength,
-            sensitive
-          }) : "<empty>";
-          items.push(item);
-        }
-        if (end < lastIndex) {
-          items.push(`(${lastIndex - end} more)`);
-        }
-        return `[${items.join(", ")}]`;
-      }
-      if (toStringType === "Object") {
-        const object = value;
-        const keys = Object.keys(object);
-        const { name } = object.constructor;
-        if (!recurse && keys.length > 0) {
-          return `${name}(${keys.length})`;
-        }
-        const numHidden = Math.max(0, keys.length - maxObjectChildren);
-        const items = keys.slice(0, maxObjectChildren).map((key2) => `${truncate(JSON.stringify(key2), recurseMaxLength)}: ${repr(object[key2], {
-          recurse: false,
-          maxLength: recurseMaxLength,
-          sensitive
-        })}`).concat(numHidden > 0 ? `(${numHidden} more)` : []);
-        const prefix = name === "Object" ? "" : `${name} `;
-        return `${prefix}{${items.join(", ")}}`;
-      }
-      return toStringType;
-    } catch (_error) {
-      return toStringType;
-    }
-  }
-  function truncate(str, maxLength) {
-    const half = Math.floor(maxLength / 2);
-    return str.length <= maxLength ? str : `${str.slice(0, half)}\u2026${str.slice(-half)}`;
-  }
-
-  // src/Helpers.ts
-  function join(array2, separator) {
-    return array2.join(separator);
-  }
-  function pad(number2) {
-    return number2.toString().padStart(2, "0");
-  }
-  function formatDate(date) {
-    return join(
-      [pad(date.getFullYear()), pad(date.getMonth() + 1), pad(date.getDate())],
-      "-"
-    );
-  }
-  function formatTime(date) {
-    return join(
-      [pad(date.getHours()), pad(date.getMinutes()), pad(date.getSeconds())],
-      ":"
-    );
-  }
-
-  // src/TeaProgram.ts
-  async function runTeaProgram(options) {
-    return new Promise((resolve, reject) => {
-      const [initialModel, initialCmds] = options.init;
-      let model = initialModel;
-      const msgQueue = [];
-      let killed = false;
-      const dispatch = (dispatchedMsg) => {
-        if (killed) {
-          return;
-        }
-        const alreadyRunning = msgQueue.length > 0;
-        msgQueue.push(dispatchedMsg);
-        if (alreadyRunning) {
-          return;
-        }
-        for (const msg of msgQueue) {
-          const [newModel, cmds] = options.update(msg, model);
-          model = newModel;
-          runCmds(cmds);
-        }
-        msgQueue.length = 0;
-      };
-      const runCmds = (cmds) => {
-        for (const cmd of cmds) {
-          options.runCmd(
-            cmd,
-            mutable,
-            dispatch,
-            (result) => {
-              cmds.length = 0;
-              killed = true;
-              resolve(result);
-            },
-            (error) => {
-              cmds.length = 0;
-              killed = true;
-              reject(error);
-            }
-          );
-          if (killed) {
-            break;
-          }
-        }
-      };
-      const mutable = options.initMutable(
-        dispatch,
-        (result) => {
-          killed = true;
-          resolve(result);
-        },
-        (error) => {
-          killed = true;
-          reject(error);
-        }
-      );
-      runCmds(initialCmds);
-    });
-  }
-
-  // src/Types.ts
-  var AbsolutePath = fieldsAuto({
-    tag: () => "AbsolutePath",
-    absolutePath: string
-  });
-  var CompilationMode = stringUnion({
-    debug: null,
-    standard: null,
-    optimize: null
-  });
-  var BrowserUiPosition = stringUnion({
-    TopLeft: null,
-    TopRight: null,
-    BottomLeft: null,
-    BottomRight: null
-  });
-
-  // client/css.ts
-  async function reloadAllCssIfNeeded(originalStyles) {
-    const results = await Promise.allSettled(
-      Array.from(
-        document.styleSheets,
-        (styleSheet) => reloadCssIfNeeded(originalStyles, styleSheet)
-      )
-    );
-    return results.some(
-      (result) => result.status === "fulfilled" && result.value
-    );
-  }
-  async function reloadCssIfNeeded(originalStyles, styleSheet) {
-    if (styleSheet.href === null) {
-      return false;
-    }
-    const url = makeUrl(styleSheet.href);
-    if (url === void 0 || url.host !== window.location.host) {
-      return false;
-    }
-    const response = await fetch(url, { cache: "reload" });
-    if (!response.ok) {
-      return false;
-    }
-    const newCss = await response.text();
-    let newStyleSheet;
-    const isFirefox = "MozAppearance" in document.documentElement.style;
-    if (isFirefox) {
-      if (/@import\b/i.test(newCss)) {
-        console.warn(
-          "elm-watch: Reloading CSS with @import is not possible in Firefox (not even in a comment or string). Style sheet:",
-          url.href
-        );
-        return false;
-      }
-      newStyleSheet = new CSSStyleSheet();
-      await newStyleSheet.replace(newCss);
-    } else {
-      const importUrls = getAllCssImports(url, styleSheet);
-      await Promise.allSettled(
-        importUrls.map((importUrl) => fetch(importUrl, { cache: "reload" }))
-      );
-      newStyleSheet = await parseCssWithImports(newCss);
-    }
-    return newStyleSheet === void 0 ? false : updateStyleSheetIfNeeded(originalStyles, styleSheet, newStyleSheet);
-  }
-  async function parseCssWithImports(css) {
-    return new Promise((resolve) => {
-      const style = document.createElement("style");
-      style.media = "print";
-      style.textContent = css;
-      style.onerror = style.onload = () => {
-        resolve(style.sheet ?? void 0);
-        style.remove();
-      };
-      document.head.append(style);
-    });
-  }
-  function makeUrl(urlString, base) {
-    try {
-      return new URL(urlString, base);
-    } catch {
-      return void 0;
-    }
-  }
-  function getAllCssImports(styleSheetUrl, styleSheet) {
-    return Array.from(styleSheet.cssRules).flatMap((rule) => {
-      if (rule instanceof CSSImportRule) {
-        const url = makeUrl(rule.href, styleSheetUrl);
-        if (url !== void 0 && url.host === styleSheetUrl.host) {
-          return [url, ...getAllCssImports(url, rule.styleSheet)];
-        }
-      }
-      return [];
-    });
-  }
-  function updateStyleSheetIfNeeded(originalStyles, oldStyleSheet, newStyleSheet) {
-    let changed = false;
-    const length = Math.min(
-      oldStyleSheet.cssRules.length,
-      newStyleSheet.cssRules.length
-    );
-    let index = 0;
-    for (; index < length; index++) {
-      const oldRule = oldStyleSheet.cssRules[index];
-      const newRule = newStyleSheet.cssRules[index];
-      if (oldRule instanceof CSSStyleRule && newRule instanceof CSSStyleRule) {
-        if (oldRule.selectorText !== newRule.selectorText) {
-          oldRule.selectorText = newRule.selectorText;
-          changed = true;
-        }
-        let originals = originalStyles.get(oldRule);
-        if (originals === void 0) {
-          originals = oldRule.style.cssText;
-          originalStyles.set(oldRule, originals);
-        }
-        if (originals !== newRule.style.cssText) {
-          oldStyleSheet.deleteRule(index);
-          oldStyleSheet.insertRule(newRule.cssText, index);
-          originalStyles.set(
-            oldStyleSheet.cssRules[index],
-            newRule.style.cssText
-          );
-          changed = true;
-        } else {
-          const nestedChanged = updateStyleSheetIfNeeded(
-            originalStyles,
-            oldRule,
-            newRule
-          );
-          if (nestedChanged) {
-            changed = true;
-            oldRule.selectorText = oldRule.selectorText;
-          }
-        }
-      } else if (oldRule instanceof CSSImportRule && newRule instanceof CSSImportRule && oldRule.cssText === newRule.cssText) {
-        const nestedChanged = updateStyleSheetIfNeeded(
-          originalStyles,
-          oldRule.styleSheet,
-          newRule.styleSheet
-        );
-        if (nestedChanged) {
-          changed = true;
-          oldRule.media = oldRule.media;
-        }
-      } else if (oldRule instanceof CSSConditionRule && newRule instanceof CSSConditionRule && oldRule.conditionText === newRule.conditionText || oldRule instanceof CSSLayerBlockRule && newRule instanceof CSSLayerBlockRule && oldRule.name === newRule.name || oldRule instanceof CSSPageRule && newRule instanceof CSSPageRule && oldRule.selectorText === newRule.selectorText) {
-        const nestedChanged = updateStyleSheetIfNeeded(
-          originalStyles,
-          oldRule,
-          newRule
-        );
-        if (nestedChanged) {
-          changed = true;
-        }
-      } else if (oldRule.cssText !== newRule.cssText) {
-        oldStyleSheet.deleteRule(index);
-        oldStyleSheet.insertRule(newRule.cssText, index);
-        changed = true;
-      }
-    }
-    while (index < oldStyleSheet.cssRules.length) {
-      oldStyleSheet.deleteRule(index);
-      changed = true;
-    }
-    for (; index < newStyleSheet.cssRules.length; index++) {
-      const newRule = newStyleSheet.cssRules[index];
-      oldStyleSheet.insertRule(newRule.cssText, index);
-      changed = true;
-    }
-    return changed;
-  }
-
-  // src/NonEmptyArray.ts
-  function NonEmptyArray(decoder) {
-    return chain(array(decoder), (array2) => {
-      if (isNonEmptyArray(array2)) {
-        return array2;
-      }
-      throw new DecoderError({
-        message: "Expected a non-empty array",
-        value: array2
-      });
-    });
-  }
-  function isNonEmptyArray(array2) {
-    return array2.length >= 1;
-  }
-
-  // client/WebSocketMessages.ts
-  var FocusedTabAcknowledged = fieldsAuto({
-    tag: () => "FocusedTabAcknowledged"
-  });
-  var OpenEditorError = fieldsUnion("tag", {
-    EnvNotSet: fieldsAuto({
-      tag: () => "EnvNotSet"
-    }),
-    CommandFailed: fieldsAuto({
-      tag: () => "CommandFailed",
-      message: string
-    })
-  });
-  var OpenEditorFailed = fieldsAuto({
-    tag: () => "OpenEditorFailed",
-    error: OpenEditorError
-  });
-  var ErrorLocation = fieldsUnion("tag", {
-    FileOnly: fieldsAuto({
-      tag: () => "FileOnly",
-      file: AbsolutePath
-    }),
-    FileWithLineAndColumn: fieldsAuto({
-      tag: () => "FileWithLineAndColumn",
-      file: AbsolutePath,
-      line: number,
-      column: number
-    }),
-    Target: fieldsAuto({
-      tag: () => "Target",
-      targetName: string
-    })
-  });
-  var CompileError = fieldsAuto({
-    title: string,
-    location: optional(ErrorLocation),
-    htmlContent: string
-  });
-  var StaticFilesChanged = fieldsAuto({
-    tag: () => "StaticFilesChanged",
-    changedFileUrlPaths: NonEmptyArray(string)
-  });
-  var StaticFilesMayHaveChangedWhileDisconnected = fieldsAuto({
-    tag: () => "StaticFilesMayHaveChangedWhileDisconnected"
-  });
-  var StatusChanged = fieldsAuto({
-    tag: () => "StatusChanged",
-    status: fieldsUnion("tag", {
-      AlreadyUpToDate: fieldsAuto({
-        tag: () => "AlreadyUpToDate",
-        compilationMode: CompilationMode,
-        browserUiPosition: BrowserUiPosition
-      }),
-      Busy: fieldsAuto({
-        tag: () => "Busy",
-        compilationMode: CompilationMode,
-        browserUiPosition: BrowserUiPosition
-      }),
-      CompileError: fieldsAuto({
-        tag: () => "CompileError",
-        compilationMode: CompilationMode,
-        browserUiPosition: BrowserUiPosition,
-        openErrorOverlay: boolean,
-        errors: array(CompileError),
-        foregroundColor: string,
-        backgroundColor: string
-      }),
-      ElmJsonError: fieldsAuto({
-        tag: () => "ElmJsonError",
-        error: string
-      }),
-      ClientError: fieldsAuto({
-        tag: () => "ClientError",
-        message: string
-      })
-    })
-  });
-  var SuccessfullyCompiled = fieldsAuto({
-    tag: () => "SuccessfullyCompiled",
-    code: string,
-    elmCompiledTimestamp: number,
-    compilationMode: CompilationMode,
-    browserUiPosition: BrowserUiPosition
-  });
-  var SuccessfullyCompiledButRecordFieldsChanged = fieldsAuto({
-    tag: () => "SuccessfullyCompiledButRecordFieldsChanged"
-  });
-  var WebSocketToClientMessage = fieldsUnion("tag", {
-    FocusedTabAcknowledged,
-    OpenEditorFailed,
-    StaticFilesChanged,
-    StaticFilesMayHaveChangedWhileDisconnected,
-    StatusChanged,
-    SuccessfullyCompiled,
-    SuccessfullyCompiledButRecordFieldsChanged
-  });
-  var WebSocketToServerMessage = fieldsUnion("tag", {
-    ChangedCompilationMode: fieldsAuto({
-      tag: () => "ChangedCompilationMode",
-      compilationMode: CompilationMode
-    }),
-    ChangedBrowserUiPosition: fieldsAuto({
-      tag: () => "ChangedBrowserUiPosition",
-      browserUiPosition: BrowserUiPosition
-    }),
-    ChangedOpenErrorOverlay: fieldsAuto({
-      tag: () => "ChangedOpenErrorOverlay",
-      openErrorOverlay: boolean
-    }),
-    FocusedTab: fieldsAuto({
-      tag: () => "FocusedTab"
-    }),
-    PressedOpenEditor: fieldsAuto({
-      tag: () => "PressedOpenEditor",
-      file: AbsolutePath,
-      line: number,
-      column: number
-    })
-  });
-  function decodeWebSocketToClientMessage(message) {
-    if (message.startsWith("//")) {
-      const newlineIndexRaw = message.indexOf("\n");
-      const newlineIndex = newlineIndexRaw === -1 ? message.length : newlineIndexRaw;
-      const jsonString = message.slice(2, newlineIndex);
-      const parsed = SuccessfullyCompiled(JSON.parse(jsonString));
-      return { ...parsed, code: message };
-    } else {
-      return WebSocketToClientMessage(JSON.parse(message));
-    }
-  }
-
-  // client/client.ts
-  var window2 = globalThis;
-  var IS_WEB_WORKER = window2.window === void 0;
-  var RELOAD_MESSAGE_KEY = "__elmWatchReloadMessage";
-  var RELOAD_TARGET_NAME_KEY_PREFIX = "__elmWatchReloadTarget__";
-  var DEFAULT_ELM_WATCH = {
-    MOCKED_TIMINGS: false,
-    WEBSOCKET_TIMEOUT: 1e3,
-    ON_INIT: () => {
-    },
-    ON_RENDER: () => {
-    },
-    ON_REACHED_IDLE_STATE: () => {
-    },
-    CHANGED_CSS: new Date(0),
-    CHANGED_FILE_URL_PATHS: { timestamp: new Date(0), changed: /* @__PURE__ */ new Set() },
-    ORIGINAL_STYLES: /* @__PURE__ */ new WeakMap(),
-    RELOAD_STATUSES: {},
-    RELOAD_PAGE: (message) => {
-      if (message !== void 0) {
-        try {
-          window2.sessionStorage.setItem(RELOAD_MESSAGE_KEY, message);
-        } catch {
-        }
-      }
-      if (IS_WEB_WORKER) {
-        if (message !== void 0) {
-          console.info(message);
-        }
-        console.error(
-          message === void 0 ? "elm-watch: You need to reload the page! I seem to be running in a Web Worker, so I can\u2019t do it for you." : `elm-watch: You need to reload the page! I seem to be running in a Web Worker, so I couldn\u2019t actually reload the page (see above).`
-        );
-      } else {
-        window2.location.reload();
-      }
-    },
-    KILL_MATCHING: () => Promise.resolve(),
-    DISCONNECT: () => {
-    },
-    LOG_DEBUG: console.debug
-  };
-  var { __ELM_WATCH } = window2;
-  if (typeof __ELM_WATCH !== "object" || __ELM_WATCH === null) {
-    __ELM_WATCH = {};
-    Object.defineProperty(window2, "__ELM_WATCH", { value: __ELM_WATCH });
-  }
-  for (const [key, value] of Object.entries(DEFAULT_ELM_WATCH)) {
-    if (__ELM_WATCH[key] === void 0) {
-      __ELM_WATCH[key] = value;
-    }
-  }
-  var VERSION = "2.0.0-beta.2";
-  var TARGET_NAME = "Example";
-  var INITIAL_ELM_COMPILED_TIMESTAMP = Number(
-    "1712359435699"
-  );
-  var ORIGINAL_COMPILATION_MODE = "standard";
-  var ORIGINAL_BROWSER_UI_POSITION = "BottomRight";
-  var WEBSOCKET_CONNECTION = "54787";
-  var CONTAINER_ID = "elm-watch";
-  var DEBUG = String("false") === "true";
-  var ELM_WATCH_CHANGED_FILE_URL_PATHS_EVENT = "elm-watch:changed-file-url-paths";
-  var BROWSER_UI_MOVED_EVENT = "BROWSER_UI_MOVED_EVENT";
-  var CLOSE_ALL_ERROR_OVERLAYS_EVENT = "CLOSE_ALL_ERROR_OVERLAYS_EVENT";
-  var ELM_WATCH_CHANGED_FILE_URL_BATCH_TIME = 10;
-  var JUST_CHANGED_BROWSER_UI_POSITION_TIMEOUT = 2e3;
-  var SEND_KEY_DO_NOT_USE_ALL_THE_TIME = Symbol(
-    "This value is supposed to only be obtained via `Status`."
-  );
-  function logDebug(...args) {
-    if (DEBUG) {
-      __ELM_WATCH.LOG_DEBUG(...args);
-    }
-  }
-  function parseBrowseUiPositionWithFallback(value) {
-    try {
-      return BrowserUiPosition(value);
-    } catch {
-      return ORIGINAL_BROWSER_UI_POSITION;
-    }
-  }
-  function removeElmWatchIndexHtmlComment() {
-    const node = document.firstChild;
-    if (node instanceof Comment && node.data.trimStart().startsWith("elm-watch debug information:")) {
-      node.remove();
-    }
-  }
-  function run() {
-    let elmCompiledTimestampBeforeReload = void 0;
-    try {
-      const message = window2.sessionStorage.getItem(RELOAD_MESSAGE_KEY);
-      if (message !== null) {
-        console.info(message);
-        window2.sessionStorage.removeItem(RELOAD_MESSAGE_KEY);
-      }
-      const key = RELOAD_TARGET_NAME_KEY_PREFIX + TARGET_NAME;
-      const previous = window2.sessionStorage.getItem(key);
-      if (previous !== null) {
-        const number2 = Number(previous);
-        if (Number.isFinite(number2)) {
-          elmCompiledTimestampBeforeReload = number2;
-        }
-        window2.sessionStorage.removeItem(key);
-      }
-    } catch {
-    }
-    const elements = IS_WEB_WORKER ? void 0 : getOrCreateTargetRoot();
-    const browserUiPosition = elements === void 0 ? ORIGINAL_BROWSER_UI_POSITION : parseBrowseUiPositionWithFallback(elements.container.dataset.position);
-    const getNow = () => new Date();
-    if (!IS_WEB_WORKER) {
-      removeElmWatchIndexHtmlComment();
-    }
-    runTeaProgram({
-      initMutable: initMutable(getNow, elements),
-      init: init(getNow(), browserUiPosition, elmCompiledTimestampBeforeReload),
-      update: (msg, model) => {
-        const [updatedModel, cmds] = update(msg, model);
-        const modelChanged = updatedModel !== model;
-        const reloadTrouble = model.status.tag !== updatedModel.status.tag && updatedModel.status.tag === "WaitingForReload" && updatedModel.elmCompiledTimestamp === updatedModel.elmCompiledTimestampBeforeReload;
-        const newModel = modelChanged ? {
-          ...updatedModel,
-          uiExpanded: reloadTrouble ? true : updatedModel.uiExpanded
-        } : model;
-        const oldErrorOverlay = getErrorOverlay(model.status);
-        const newErrorOverlay = getErrorOverlay(newModel.status);
-        const statusType = statusToStatusType(newModel.status.tag);
-        const statusTypeChanged = statusType !== statusToStatusType(model.status.tag);
-        const statusFlashType = getStatusFlashType({
-          statusType,
-          statusTypeChanged,
-          hasReceivedHotReload: newModel.elmCompiledTimestamp !== INITIAL_ELM_COMPILED_TIMESTAMP,
-          uiRelatedUpdate: msg.tag === "UiMsg",
-          errorOverlayVisible: elements !== void 0 && !elements.overlay.hidden
-        });
-        const flashCmd = statusFlashType === void 0 || cmds.some((cmd) => cmd.tag === "Flash") ? [] : [{ tag: "Flash", flashType: statusFlashType }];
-        const allCmds = modelChanged ? [
-          ...cmds,
-          {
-            tag: "UpdateGlobalStatus",
-            reloadStatus: statusToReloadStatus(newModel),
-            elmCompiledTimestamp: newModel.elmCompiledTimestamp
-          },
-          newModel.status.tag === model.status.tag && oldErrorOverlay?.openErrorOverlay === newErrorOverlay?.openErrorOverlay ? { tag: "NoCmd" } : {
-            tag: "UpdateErrorOverlay",
-            errors: newErrorOverlay === void 0 || !newErrorOverlay.openErrorOverlay ? /* @__PURE__ */ new Map() : newErrorOverlay.errors,
-            sendKey: statusToSpecialCaseSendKey(newModel.status)
-          },
-          ...elements !== void 0 || newModel.status.tag !== model.status.tag ? [
-            {
-              tag: "Render",
-              model: newModel,
-              manageFocus: msg.tag === "UiMsg"
-            }
-          ] : [],
-          ...flashCmd,
-          model.browserUiPosition === newModel.browserUiPosition ? { tag: "NoCmd" } : {
-            tag: "SetBrowserUiPosition",
-            browserUiPosition: newModel.browserUiPosition
-          },
-          reloadTrouble ? { tag: "TriggerReachedIdleState", reason: "ReloadTrouble" } : { tag: "NoCmd" }
-        ] : [...cmds, ...flashCmd];
-        logDebug(`${msg.tag} (${TARGET_NAME})`, msg, newModel, allCmds);
-        return [newModel, allCmds];
-      },
-      runCmd: runCmd(getNow, elements)
-    }).catch((error) => {
-      console.error("elm-watch: Unexpectedly exited with error:", error);
-    });
-  }
-  function getErrorOverlay(status) {
-    return "errorOverlay" in status ? status.errorOverlay : void 0;
-  }
-  function statusToReloadStatus(model) {
-    switch (model.status.tag) {
-      case "Busy":
-      case "Connecting":
-        return { tag: "MightWantToReload" };
-      case "CompileError":
-      case "ElmJsonError":
-      case "EvalError":
-      case "Idle":
-      case "SleepingBeforeReconnect":
-      case "UnexpectedError":
-        return { tag: "NoReloadWanted" };
-      case "WaitingForReload":
-        return model.elmCompiledTimestamp === model.elmCompiledTimestampBeforeReload ? { tag: "NoReloadWanted" } : { tag: "ReloadRequested", reasons: model.status.reasons };
-    }
-  }
-  function statusToStatusType(statusTag) {
-    switch (statusTag) {
-      case "Idle":
-        return "Success";
-      case "Busy":
-      case "Connecting":
-      case "SleepingBeforeReconnect":
-      case "WaitingForReload":
-        return "Waiting";
-      case "CompileError":
-      case "ElmJsonError":
-      case "EvalError":
-      case "UnexpectedError":
-        return "Error";
-    }
-  }
-  function statusToSpecialCaseSendKey(status) {
-    switch (status.tag) {
-      case "CompileError":
-      case "Idle":
-        return status.sendKey;
-      case "Busy":
-        return SEND_KEY_DO_NOT_USE_ALL_THE_TIME;
-      case "Connecting":
-      case "SleepingBeforeReconnect":
-      case "WaitingForReload":
-      case "ElmJsonError":
-      case "EvalError":
-      case "UnexpectedError":
-        return void 0;
-    }
-  }
-  function getOrCreateContainer() {
-    const existing = document.getElementById(CONTAINER_ID);
-    if (existing !== null) {
-      return existing;
-    }
-    const container = h(HTMLDivElement, { id: CONTAINER_ID });
-    container.style.all = "unset";
-    container.style.position = "fixed";
-    container.style.zIndex = "2147483647";
-    const shadowRoot = container.attachShadow({ mode: "open" });
-    shadowRoot.append(h(HTMLStyleElement, {}, CSS));
-    document.documentElement.append(container);
-    return container;
-  }
-  function getOrCreateTargetRoot() {
-    const container = getOrCreateContainer();
-    const { shadowRoot } = container;
-    if (shadowRoot === null) {
-      throw new Error(
-        `elm-watch: Cannot set up hot reload, because an element with ID ${CONTAINER_ID} exists, but \`.shadowRoot\` is null!`
-      );
-    }
-    let overlay = shadowRoot.querySelector(`.${CLASS.overlay}`);
-    if (overlay === null) {
-      overlay = h(HTMLDivElement, {
-        className: CLASS.overlay,
-        attrs: { "data-test-id": "Overlay" }
-      });
-      shadowRoot.append(overlay);
-    }
-    let overlayCloseButton = shadowRoot.querySelector(
-      `.${CLASS.overlayCloseButton}`
-    );
-    if (overlayCloseButton === null) {
-      const closeAllErrorOverlays = () => {
-        shadowRoot.dispatchEvent(new CustomEvent(CLOSE_ALL_ERROR_OVERLAYS_EVENT));
-      };
-      overlayCloseButton = h(HTMLButtonElement, {
-        className: CLASS.overlayCloseButton,
-        attrs: {
-          "aria-label": "Close error overlay",
-          "data-test-id": "OverlayCloseButton"
-        },
-        onclick: closeAllErrorOverlays
-      });
-      shadowRoot.append(overlayCloseButton);
-      const overlayNonNull = overlay;
-      window2.addEventListener(
-        "keydown",
-        (event) => {
-          if (overlayNonNull.hasChildNodes() && event.key === "Escape") {
-            event.preventDefault();
-            event.stopImmediatePropagation();
-            closeAllErrorOverlays();
-          }
-        },
-        true
-      );
-    }
-    let root = shadowRoot.querySelector(`.${CLASS.root}`);
-    if (root === null) {
-      root = h(HTMLDivElement, { className: CLASS.root });
-      shadowRoot.append(root);
-    }
-    const targetRoot = createTargetRoot(TARGET_NAME);
-    root.append(targetRoot);
-    const elements = {
-      container,
-      shadowRoot,
-      overlay,
-      overlayCloseButton,
-      root,
-      targetRoot
-    };
-    setBrowserUiPosition(ORIGINAL_BROWSER_UI_POSITION, elements);
-    return elements;
-  }
-  function createTargetRoot(targetName) {
-    return h(HTMLDivElement, {
-      className: CLASS.targetRoot,
-      attrs: { "data-target": targetName }
-    });
-  }
-  function browserUiPositionToCss(browserUiPosition) {
-    switch (browserUiPosition) {
-      case "TopLeft":
-        return { top: "-1px", bottom: "auto", left: "-1px", right: "auto" };
-      case "TopRight":
-        return { top: "-1px", bottom: "auto", left: "auto", right: "-1px" };
-      case "BottomLeft":
-        return { top: "auto", bottom: "-1px", left: "-1px", right: "auto" };
-      case "BottomRight":
-        return { top: "auto", bottom: "-1px", left: "auto", right: "-1px" };
-    }
-  }
-  function browserUiPositionToCssForChooser(browserUiPosition) {
-    switch (browserUiPosition) {
-      case "TopLeft":
-        return { top: "auto", bottom: "0", left: "auto", right: "0" };
-      case "TopRight":
-        return { top: "auto", bottom: "0", left: "0", right: "auto" };
-      case "BottomLeft":
-        return { top: "0", bottom: "auto", left: "auto", right: "0" };
-      case "BottomRight":
-        return { top: "0", bottom: "auto", left: "0", right: "auto" };
-    }
-  }
-  function setBrowserUiPosition(browserUiPosition, elements) {
-    const isFirstTargetRoot = elements.targetRoot.previousElementSibling === null;
-    if (!isFirstTargetRoot) {
-      return;
-    }
-    elements.container.dataset.position = browserUiPosition;
-    for (const [key, value] of Object.entries(
-      browserUiPositionToCss(browserUiPosition)
-    )) {
-      elements.container.style.setProperty(key, value);
-    }
-    const isInBottomHalf = browserUiPosition === "BottomLeft" || browserUiPosition === "BottomRight";
-    elements.root.classList.toggle(CLASS.rootBottomHalf, isInBottomHalf);
-    elements.shadowRoot.dispatchEvent(
-      new CustomEvent(BROWSER_UI_MOVED_EVENT, { detail: browserUiPosition })
-    );
-  }
-  var initMutable = (getNow, elements) => (dispatch, resolvePromise) => {
-    let removeListeners = [];
-    const mutable = {
-      removeListeners: () => {
-        for (const removeListener of removeListeners) {
-          removeListener();
-        }
-      },
-      webSocket: initWebSocket(
-        getNow,
-        INITIAL_ELM_COMPILED_TIMESTAMP,
-        dispatch
-      ),
-      webSocketTimeoutId: void 0
-    };
-    mutable.webSocket.addEventListener(
-      "open",
-      () => {
-        removeListeners = [
-          addEventListener(window2, "focus", (event) => {
-            if (event instanceof CustomEvent && event.detail !== TARGET_NAME) {
-              return;
-            }
-            dispatch({ tag: "FocusedTab" });
-          }),
-          addEventListener(window2, "visibilitychange", () => {
-            if (document.visibilityState === "visible") {
-              dispatch({
-                tag: "PageVisibilityChangedToVisible",
-                date: getNow()
-              });
-            }
-          }),
-          ...elements === void 0 ? [] : [
-            addEventListener(
-              elements.shadowRoot,
-              BROWSER_UI_MOVED_EVENT,
-              (event) => {
-                dispatch({
-                  tag: "BrowserUiMoved",
-                  browserUiPosition: fields(
-                    (field) => field("detail", parseBrowseUiPositionWithFallback)
-                  )(event)
-                });
-              }
-            ),
-            addEventListener(
-              elements.shadowRoot,
-              CLOSE_ALL_ERROR_OVERLAYS_EVENT,
-              () => {
-                dispatch({
-                  tag: "UiMsg",
-                  date: getNow(),
-                  msg: {
-                    tag: "ChangedOpenErrorOverlay",
-                    openErrorOverlay: false
-                  }
-                });
-              }
-            )
-          ]
-        ];
-      },
-      { once: true }
-    );
-    __ELM_WATCH.RELOAD_STATUSES[TARGET_NAME] = {
-      tag: "MightWantToReload"
-    };
-    const originalOnInit = __ELM_WATCH.ON_INIT;
-    __ELM_WATCH.ON_INIT = () => {
-      dispatch({ tag: "AppInit" });
-      originalOnInit();
-    };
-    const originalKillMatching = __ELM_WATCH.KILL_MATCHING;
-    __ELM_WATCH.KILL_MATCHING = (targetName) => new Promise((resolve, reject) => {
-      if (targetName.test(TARGET_NAME) && mutable.webSocket.readyState !== WebSocket.CLOSED) {
-        mutable.webSocket.addEventListener("close", () => {
-          originalKillMatching(targetName).then(resolve).catch(reject);
-        });
-        mutable.removeListeners();
-        mutable.webSocket.close();
-        if (mutable.webSocketTimeoutId !== void 0) {
-          clearTimeout(mutable.webSocketTimeoutId);
-          mutable.webSocketTimeoutId = void 0;
-        }
-        elements?.targetRoot.remove();
-        resolvePromise(void 0);
-      } else {
-        originalKillMatching(targetName).then(resolve).catch(reject);
-      }
-    });
-    const originalDisconnect = __ELM_WATCH.DISCONNECT;
-    __ELM_WATCH.DISCONNECT = (targetName) => {
-      if (targetName.test(TARGET_NAME) && mutable.webSocket.readyState !== WebSocket.CLOSED) {
-        mutable.webSocket.close();
-      } else {
-        originalDisconnect(targetName);
-      }
-    };
-    return mutable;
-  };
-  function addEventListener(target, eventName, listener) {
-    target.addEventListener(eventName, listener);
-    return () => {
-      target.removeEventListener(eventName, listener);
-    };
-  }
-  function initWebSocket(getNow, elmCompiledTimestamp, dispatch) {
-    const hostname = window2.location.hostname === "" ? "localhost" : window2.location.hostname;
-    const protocol = window2.location.protocol === "https:" ? "wss" : "ws";
-    const url = new URL(
-      /^\d+$/.test(WEBSOCKET_CONNECTION) ? `${protocol}://${hostname}:${WEBSOCKET_CONNECTION}/elm-watch` : WEBSOCKET_CONNECTION
-    );
-    url.searchParams.set("elmWatchVersion", VERSION);
-    url.searchParams.set("targetName", TARGET_NAME);
-    url.searchParams.set("elmCompiledTimestamp", elmCompiledTimestamp.toString());
-    const webSocket = new WebSocket(url);
-    webSocket.addEventListener("open", () => {
-      dispatch({ tag: "WebSocketConnected", date: getNow() });
-    });
-    webSocket.addEventListener("close", () => {
-      dispatch({
-        tag: "WebSocketClosed",
-        date: getNow()
-      });
-    });
-    webSocket.addEventListener("message", (event) => {
-      dispatch({
-        tag: "WebSocketMessageReceived",
-        date: getNow(),
-        data: event.data
-      });
-    });
-    return webSocket;
-  }
-  var init = (date, browserUiPosition, elmCompiledTimestampBeforeReload) => {
-    const model = {
-      status: { tag: "Connecting", date, attemptNumber: 1 },
-      compilationMode: ORIGINAL_COMPILATION_MODE,
-      browserUiPosition,
-      lastBrowserUiPositionChangeDate: void 0,
-      elmCompiledTimestamp: INITIAL_ELM_COMPILED_TIMESTAMP,
-      elmCompiledTimestampBeforeReload,
-      uiExpanded: false
-    };
-    return [model, [{ tag: "Render", model, manageFocus: false }]];
-  };
-  function update(msg, model) {
-    switch (msg.tag) {
-      case "AppInit":
-        return [{ ...model }, []];
-      case "BrowserUiMoved":
-        return [{ ...model, browserUiPosition: msg.browserUiPosition }, []];
-      case "EvalErrored":
-        return [
-          {
-            ...model,
-            status: { tag: "EvalError", date: msg.date },
-            uiExpanded: true
-          },
-          [
-            {
-              tag: "TriggerReachedIdleState",
-              reason: "EvalErrored"
-            }
-          ]
-        ];
-      case "EvalNeedsReload":
-        return [
-          {
-            ...model,
-            status: {
-              tag: "WaitingForReload",
-              date: msg.date,
-              reasons: msg.reasons
-            }
-          },
-          []
-        ];
-      case "EvalSucceeded":
-        return [
-          {
-            ...model,
-            status: {
-              tag: "Idle",
-              date: msg.date,
-              sendKey: SEND_KEY_DO_NOT_USE_ALL_THE_TIME
-            }
-          },
-          [
-            {
-              tag: "TriggerReachedIdleState",
-              reason: "EvalSucceeded"
-            }
-          ]
-        ];
-      case "FocusedTab":
-        return [
-          model,
-          [
-            ...statusToStatusType(model.status.tag) === "Error" ? [{ tag: "Flash", flashType: "error" }] : [],
-            {
-              tag: "SendMessage",
-              message: { tag: "FocusedTab" },
-              sendKey: SEND_KEY_DO_NOT_USE_ALL_THE_TIME
-            },
-            {
-              tag: "WebSocketTimeoutBegin"
-            }
-          ]
-        ];
-      case "PageVisibilityChangedToVisible":
-        return reconnect(model, msg.date, { force: true });
-      case "ReloadAllCssDone":
-        return [
-          model,
-          msg.didChange ? [{ tag: "Flash", flashType: "success" }] : []
-        ];
-      case "SleepBeforeReconnectDone":
-        return reconnect(model, msg.date, { force: false });
-      case "UiMsg":
-        return onUiMsg(msg.date, msg.msg, model);
-      case "WebSocketClosed": {
-        const attemptNumber = "attemptNumber" in model.status ? model.status.attemptNumber + 1 : 1;
-        return [
-          {
-            ...model,
-            status: {
-              tag: "SleepingBeforeReconnect",
-              date: msg.date,
-              attemptNumber
-            }
-          },
-          [{ tag: "SleepBeforeReconnect", attemptNumber }]
-        ];
-      }
-      case "WebSocketConnected":
-        return [
-          {
-            ...model,
-            status: { tag: "Busy", date: msg.date, errorOverlay: void 0 }
-          },
-          []
-        ];
-      case "WebSocketMessageReceived": {
-        const result = parseWebSocketMessageData(msg.data);
-        switch (result.tag) {
-          case "Success":
-            return onWebSocketToClientMessage(msg.date, result.message, model);
-          case "Error":
-            return [
-              {
-                ...model,
-                status: {
-                  tag: "UnexpectedError",
-                  date: msg.date,
-                  message: result.message
-                },
-                uiExpanded: true
-              },
-              []
-            ];
-        }
-      }
-    }
-  }
-  function onUiMsg(date, msg, model) {
-    switch (msg.tag) {
-      case "ChangedBrowserUiPosition":
-        return [
-          {
-            ...model,
-            browserUiPosition: msg.browserUiPosition,
-            lastBrowserUiPositionChangeDate: date
-          },
-          [
-            {
-              tag: "SendMessage",
-              message: {
-                tag: "ChangedBrowserUiPosition",
-                browserUiPosition: msg.browserUiPosition
-              },
-              sendKey: msg.sendKey
-            }
-          ]
-        ];
-      case "ChangedCompilationMode":
-        return [
-          {
-            ...model,
-            status: {
-              tag: "Busy",
-              date,
-              errorOverlay: getErrorOverlay(model.status)
-            },
-            compilationMode: msg.compilationMode
-          },
-          [
-            {
-              tag: "SendMessage",
-              message: {
-                tag: "ChangedCompilationMode",
-                compilationMode: msg.compilationMode
-              },
-              sendKey: msg.sendKey
-            }
-          ]
-        ];
-      case "ChangedOpenErrorOverlay":
-        return "errorOverlay" in model.status && model.status.errorOverlay !== void 0 ? [
-          {
-            ...model,
-            status: {
-              ...model.status,
-              errorOverlay: {
-                ...model.status.errorOverlay,
-                openErrorOverlay: msg.openErrorOverlay
-              }
-            },
-            uiExpanded: false
-          },
-          [
-            {
-              tag: "SendMessage",
-              message: {
-                tag: "ChangedOpenErrorOverlay",
-                openErrorOverlay: msg.openErrorOverlay
-              },
-              sendKey: model.status.tag === "Busy" ? SEND_KEY_DO_NOT_USE_ALL_THE_TIME : model.status.sendKey
-            }
-          ]
-        ] : [model, []];
-      case "PressedChevron":
-        return [{ ...model, uiExpanded: !model.uiExpanded }, []];
-      case "PressedOpenEditor":
-        return [
-          model,
-          [
-            {
-              tag: "SendMessage",
-              message: {
-                tag: "PressedOpenEditor",
-                file: msg.file,
-                line: msg.line,
-                column: msg.column
-              },
-              sendKey: msg.sendKey
-            }
-          ]
-        ];
-      case "PressedReconnectNow":
-        return reconnect(model, date, { force: true });
-    }
-  }
-  function onWebSocketToClientMessage(date, msg, model) {
-    switch (msg.tag) {
-      case "FocusedTabAcknowledged":
-        return [model, [{ tag: "WebSocketTimeoutClear" }]];
-      case "OpenEditorFailed":
-        return [
-          model.status.tag === "CompileError" ? {
-            ...model,
-            status: { ...model.status, openEditorError: msg.error },
-            uiExpanded: true
-          } : model,
-          [
-            {
-              tag: "TriggerReachedIdleState",
-              reason: "OpenEditorFailed"
-            }
-          ]
-        ];
-      case "StaticFilesChanged":
-        return [
-          { ...model, status: { ...model.status, date } },
-          [
-            {
-              tag: "HandleStaticFilesChanged",
-              changedFileUrlPaths: msg.changedFileUrlPaths
-            }
-          ]
-        ];
-      case "StaticFilesMayHaveChangedWhileDisconnected":
-        return [
-          { ...model, status: { ...model.status, date } },
-          [
-            {
-              tag: "HandleStaticFilesChanged",
-              changedFileUrlPaths: "AnyFileMayHaveChanged"
-            }
-          ]
-        ];
-      case "StatusChanged":
-        return statusChanged(date, msg, model);
-      case "SuccessfullyCompiled": {
-        const justChangedBrowserUiPosition = model.lastBrowserUiPositionChangeDate !== void 0 && date.getTime() - model.lastBrowserUiPositionChangeDate.getTime() < JUST_CHANGED_BROWSER_UI_POSITION_TIMEOUT;
-        return msg.compilationMode !== ORIGINAL_COMPILATION_MODE ? [
-          {
-            ...model,
-            status: {
-              tag: "WaitingForReload",
-              date,
-              reasons: ORIGINAL_COMPILATION_MODE === "proxy" ? [] : [
-                `compilation mode changed from ${ORIGINAL_COMPILATION_MODE} to ${msg.compilationMode}.`
-              ]
-            },
-            compilationMode: msg.compilationMode
-          },
-          []
-        ] : [
-          {
-            ...model,
-            compilationMode: msg.compilationMode,
-            elmCompiledTimestamp: msg.elmCompiledTimestamp,
-            browserUiPosition: msg.browserUiPosition,
-            lastBrowserUiPositionChangeDate: void 0
-          },
-          [
-            { tag: "Eval", code: msg.code },
-            justChangedBrowserUiPosition ? {
-              tag: "SetBrowserUiPosition",
-              browserUiPosition: msg.browserUiPosition
-            } : { tag: "NoCmd" }
-          ]
-        ];
-      }
-      case "SuccessfullyCompiledButRecordFieldsChanged":
-        return [
-          {
-            ...model,
-            status: {
-              tag: "WaitingForReload",
-              date,
-              reasons: [
-                `record field mangling in optimize mode was different than last time.`
-              ]
-            }
-          },
-          []
-        ];
-    }
-  }
-  function statusChanged(date, { status }, model) {
-    switch (status.tag) {
-      case "AlreadyUpToDate":
-        return [
-          {
-            ...model,
-            status: {
-              tag: "Idle",
-              date,
-              sendKey: SEND_KEY_DO_NOT_USE_ALL_THE_TIME
-            },
-            compilationMode: status.compilationMode,
-            browserUiPosition: status.browserUiPosition
-          },
-          [
-            {
-              tag: "TriggerReachedIdleState",
-              reason: "AlreadyUpToDate"
-            }
-          ]
-        ];
-      case "Busy":
-        return [
-          {
-            ...model,
-            status: {
-              tag: "Busy",
-              date,
-              errorOverlay: getErrorOverlay(model.status)
-            },
-            compilationMode: status.compilationMode,
-            browserUiPosition: status.browserUiPosition
-          },
-          []
-        ];
-      case "ClientError":
-        return [
-          {
-            ...model,
-            status: { tag: "UnexpectedError", date, message: status.message },
-            uiExpanded: true
-          },
-          [
-            {
-              tag: "TriggerReachedIdleState",
-              reason: "ClientError"
-            }
-          ]
-        ];
-      case "CompileError":
-        return [
-          {
-            ...model,
-            status: {
-              tag: "CompileError",
-              date,
-              sendKey: SEND_KEY_DO_NOT_USE_ALL_THE_TIME,
-              errorOverlay: {
-                errors: new Map(
-                  status.errors.map((error) => {
-                    const overlayError = {
-                      title: error.title,
-                      location: error.location,
-                      htmlContent: error.htmlContent,
-                      foregroundColor: status.foregroundColor,
-                      backgroundColor: status.backgroundColor
-                    };
-                    const id = JSON.stringify(overlayError);
-                    return [id, overlayError];
-                  })
-                ),
-                openErrorOverlay: status.openErrorOverlay
-              },
-              openEditorError: void 0
-            },
-            compilationMode: status.compilationMode,
-            browserUiPosition: status.browserUiPosition
-          },
-          [
-            {
-              tag: "TriggerReachedIdleState",
-              reason: "CompileError"
-            }
-          ]
-        ];
-      case "ElmJsonError":
-        return [
-          {
-            ...model,
-            status: { tag: "ElmJsonError", date, error: status.error }
-          },
-          [
-            {
-              tag: "TriggerReachedIdleState",
-              reason: "ElmJsonError"
-            }
-          ]
-        ];
-    }
-  }
-  function reconnect(model, date, { force }) {
-    return model.status.tag === "SleepingBeforeReconnect" && (date.getTime() - model.status.date.getTime() >= retryWaitMs(model.status.attemptNumber) || force) ? [
-      {
-        ...model,
-        status: {
-          tag: "Connecting",
-          date,
-          attemptNumber: model.status.attemptNumber
-        }
-      },
-      [
-        {
-          tag: "Reconnect",
-          elmCompiledTimestamp: model.elmCompiledTimestamp
-        }
-      ]
-    ] : [model, []];
-  }
-  function retryWaitMs(attemptNumber) {
-    return Math.min(1e3 + 10 * attemptNumber ** 2, 1e3 * 60);
-  }
-  function printRetryWaitMs(attemptNumber) {
-    return `${retryWaitMs(attemptNumber) / 1e3} seconds`;
-  }
-  var runCmd = (getNow, elements) => (cmd, mutable, dispatch, _resolvePromise, rejectPromise) => {
-    switch (cmd.tag) {
-      case "Eval": {
-        try {
-          const f = new Function(cmd.code);
-          f();
-          dispatch({ tag: "EvalSucceeded", date: getNow() });
-        } catch (unknownError) {
-          if (unknownError instanceof Error && unknownError.message.startsWith("ELM_WATCH_RELOAD_NEEDED")) {
-            dispatch({
-              tag: "EvalNeedsReload",
-              date: getNow(),
-              reasons: unknownError.message.split("\n\n---\n\n").slice(1)
-            });
-          } else {
-            void Promise.reject(unknownError);
-            dispatch({ tag: "EvalErrored", date: getNow() });
-          }
-        }
-        return;
-      }
-      case "Flash":
-        if (elements !== void 0) {
-          flash(elements, cmd.flashType);
-        }
-        return;
-      case "HandleStaticFilesChanged": {
-        const now = getNow();
-        let shouldReloadCss = false;
-        if (cmd.changedFileUrlPaths === "AnyFileMayHaveChanged") {
-          shouldReloadCss = true;
-        } else {
-          if (now.getTime() - __ELM_WATCH.CHANGED_FILE_URL_PATHS.timestamp.getTime() > ELM_WATCH_CHANGED_FILE_URL_BATCH_TIME) {
-            __ELM_WATCH.CHANGED_FILE_URL_PATHS = {
-              timestamp: now,
-              changed: /* @__PURE__ */ new Set()
-            };
-          }
-          const justChangedFileUrlPaths = /* @__PURE__ */ new Set();
-          for (const path of cmd.changedFileUrlPaths) {
-            if (path.toLowerCase().endsWith(".css")) {
-              shouldReloadCss = true;
-            } else if (!__ELM_WATCH.CHANGED_FILE_URL_PATHS.changed.has(path)) {
-              justChangedFileUrlPaths.add(path);
-            }
-          }
-          if (justChangedFileUrlPaths.size > 0) {
-            for (const path of justChangedFileUrlPaths) {
-              __ELM_WATCH.CHANGED_FILE_URL_PATHS.changed.add(path);
-            }
-            window2.dispatchEvent(
-              new CustomEvent(ELM_WATCH_CHANGED_FILE_URL_PATHS_EVENT, {
-                detail: justChangedFileUrlPaths
-              })
-            );
-          }
-        }
-        if (shouldReloadCss && now.getTime() - __ELM_WATCH.CHANGED_CSS.getTime() > ELM_WATCH_CHANGED_FILE_URL_BATCH_TIME) {
-          __ELM_WATCH.CHANGED_CSS = now;
-          reloadAllCssIfNeeded(__ELM_WATCH.ORIGINAL_STYLES).then((didChange) => {
-            dispatch({ tag: "ReloadAllCssDone", didChange });
-          }).catch(rejectPromise);
-        }
-        return;
-      }
-      case "NoCmd":
-        return;
-      case "Reconnect":
-        mutable.webSocket = initWebSocket(
-          getNow,
-          cmd.elmCompiledTimestamp,
-          dispatch
-        );
-        return;
-      case "Render": {
-        const { model } = cmd;
-        const info = {
-          version: VERSION,
-          webSocketUrl: new URL(mutable.webSocket.url),
-          targetName: TARGET_NAME,
-          originalCompilationMode: ORIGINAL_COMPILATION_MODE,
-          initializedElmAppsStatus: checkInitializedElmAppsStatus()
-        };
-        if (elements === void 0) {
-          const isError = statusToStatusType(model.status.tag) === "Error";
-          const consoleMethod = isError ? console.error : console.info;
-          consoleMethod(renderWebWorker(model, info));
-        } else {
-          const { targetRoot } = elements;
-          render(getNow, targetRoot, dispatch, model, info, cmd.manageFocus);
-        }
-        return;
-      }
-      case "SendMessage": {
-        const json = JSON.stringify(cmd.message);
-        try {
-          mutable.webSocket.send(json);
-        } catch (error) {
-          console.error("elm-watch: Failed to send WebSocket message:", error);
-        }
-        return;
-      }
-      case "SetBrowserUiPosition":
-        if (elements !== void 0) {
-          setBrowserUiPosition(cmd.browserUiPosition, elements);
-        }
-        return;
-      case "SleepBeforeReconnect":
-        setTimeout(() => {
-          if (typeof document === "undefined" || document.visibilityState === "visible") {
-            dispatch({ tag: "SleepBeforeReconnectDone", date: getNow() });
-          }
-        }, retryWaitMs(cmd.attemptNumber));
-        return;
-      case "TriggerReachedIdleState":
-        Promise.resolve().then(() => {
-          __ELM_WATCH.ON_REACHED_IDLE_STATE(cmd.reason);
-        }).catch(rejectPromise);
-        return;
-      case "UpdateErrorOverlay":
-        if (elements !== void 0) {
-          updateErrorOverlay(
-            TARGET_NAME,
-            (msg) => {
-              dispatch({ tag: "UiMsg", date: getNow(), msg });
-            },
-            cmd.sendKey,
-            cmd.errors,
-            elements.overlay,
-            elements.overlayCloseButton
-          );
-        }
-        return;
-      case "UpdateGlobalStatus":
-        __ELM_WATCH.RELOAD_STATUSES[TARGET_NAME] = cmd.reloadStatus;
-        switch (cmd.reloadStatus.tag) {
-          case "NoReloadWanted":
-          case "MightWantToReload":
-            break;
-          case "ReloadRequested":
-            try {
-              window2.sessionStorage.setItem(
-                RELOAD_TARGET_NAME_KEY_PREFIX + TARGET_NAME,
-                cmd.elmCompiledTimestamp.toString()
-              );
-            } catch {
-            }
-        }
-        reloadPageIfNeeded();
-        return;
-      case "WebSocketTimeoutBegin":
-        if (mutable.webSocketTimeoutId === void 0) {
-          mutable.webSocketTimeoutId = setTimeout(() => {
-            mutable.webSocketTimeoutId = void 0;
-            mutable.webSocket.close();
-            dispatch({
-              tag: "WebSocketClosed",
-              date: getNow()
-            });
-          }, __ELM_WATCH.WEBSOCKET_TIMEOUT);
-        }
-        return;
-      case "WebSocketTimeoutClear":
-        if (mutable.webSocketTimeoutId !== void 0) {
-          clearTimeout(mutable.webSocketTimeoutId);
-          mutable.webSocketTimeoutId = void 0;
-        }
-        return;
-    }
-  };
-  function parseWebSocketMessageData(data) {
-    try {
-      return {
-        tag: "Success",
-        message: decodeWebSocketToClientMessage(string(data))
-      };
-    } catch (unknownError) {
-      return {
-        tag: "Error",
-        message: `Failed to decode web socket message sent from the server:
-${possiblyDecodeErrorToString(
-          unknownError
-        )}`
-      };
-    }
-  }
-  function possiblyDecodeErrorToString(unknownError) {
-    return unknownError instanceof DecoderError ? unknownError.format() : unknownError instanceof Error ? unknownError.message : repr(unknownError);
-  }
-  function functionToNull(value) {
-    return typeof value === "function" ? null : value;
-  }
-  var ProgramType = stringUnion({
-    "Platform.worker": null,
-    "Browser.sandbox": null,
-    "Browser.element": null,
-    "Browser.document": null,
-    "Browser.application": null,
-    Html: null
-  });
-  var ElmModule = chain(
-    record(
-      chain(
-        functionToNull,
-        multi({
-          null: () => [],
-          array: array(
-            fields((field) => field("__elmWatchProgramType", ProgramType))
-          ),
-          object: (value) => ElmModule(value)
-        })
-      )
-    ),
-    (record2) => Object.values(record2).flat()
-  );
-  var ProgramTypes = fields((field) => field("Elm", ElmModule));
-  function checkInitializedElmAppsStatus() {
-    if (window2.Elm !== void 0 && "__elmWatchProxy" in window2.Elm) {
-      return {
-        tag: "DebuggerModeStatus",
-        status: {
-          tag: "Disabled",
-          reason: noDebuggerYetReason
-        }
-      };
-    }
-    if (window2.Elm === void 0) {
-      return { tag: "MissingWindowElm" };
-    }
-    let programTypes;
-    try {
-      programTypes = ProgramTypes(window2);
-    } catch (unknownError) {
-      return {
-        tag: "DecodeError",
-        message: possiblyDecodeErrorToString(unknownError)
-      };
-    }
-    if (programTypes.length === 0) {
-      return { tag: "NoProgramsAtAll" };
-    }
-    const noDebugger = programTypes.filter((programType) => {
-      switch (programType) {
-        case "Platform.worker":
-        case "Html":
-          return true;
-        case "Browser.sandbox":
-        case "Browser.element":
-        case "Browser.document":
-        case "Browser.application":
-          return false;
-      }
-    });
-    return {
-      tag: "DebuggerModeStatus",
-      status: noDebugger.length === programTypes.length ? {
-        tag: "Disabled",
-        reason: noDebuggerReason(new Set(noDebugger))
-      } : { tag: "Enabled" }
-    };
-  }
-  function reloadPageIfNeeded() {
-    let shouldReload = false;
-    const reasons = [];
-    for (const [targetName, reloadStatus] of Object.entries(
-      __ELM_WATCH.RELOAD_STATUSES
-    )) {
-      switch (reloadStatus.tag) {
-        case "MightWantToReload":
-          return;
-        case "NoReloadWanted":
-          break;
-        case "ReloadRequested":
-          shouldReload = true;
-          if (reloadStatus.reasons.length > 0) {
-            reasons.push([targetName, reloadStatus.reasons]);
-          }
-          break;
-      }
-    }
-    if (!shouldReload) {
-      return;
-    }
-    const first = reasons[0];
-    const [separator, reasonString] = reasons.length === 1 && first !== void 0 && first[1].length === 1 ? [" ", `${first[1].join("")}
-(target: ${first[0]})`] : [
-      ":\n\n",
-      reasons.map(
-        ([targetName, subReasons]) => [
-          targetName,
-          ...subReasons.map((subReason) => `- ${subReason}`)
-        ].join("\n")
-      ).join("\n\n")
-    ];
-    const message = reasons.length === 0 ? void 0 : `elm-watch: I did a full page reload because${separator}${reasonString}`;
-    __ELM_WATCH.RELOAD_STATUSES = {};
-    __ELM_WATCH.RELOAD_PAGE(message);
-  }
-  function h(t, {
-    attrs,
-    style,
-    localName,
-    ...props
-  }, ...children) {
-    const element = document.createElement(
-      localName ?? t.name.replace(/^HTML(\w+)Element$/, "$1").replace("Anchor", "a").replace("Paragraph", "p").replace(/^([DOU])List$/, "$1l").toLowerCase()
-    );
-    Object.assign(element, props);
-    if (attrs !== void 0) {
-      for (const [key, value] of Object.entries(attrs)) {
-        element.setAttribute(key, value);
-      }
-    }
-    if (style !== void 0) {
-      for (const [key, value] of Object.entries(style)) {
-        element.style[key] = value;
-      }
-    }
-    for (const child of children) {
-      if (child !== void 0) {
-        element.append(
-          typeof child === "string" ? document.createTextNode(child) : child
-        );
-      }
-    }
-    return element;
-  }
-  function renderWebWorker(model, info) {
-    const statusData = statusIconAndText(model, info);
-    return `${statusData.icon} elm-watch: ${statusData.status} ${formatTime(
-      model.status.date
-    )} (${info.targetName})`;
-  }
-  function render(getNow, targetRoot, dispatch, model, info, manageFocus) {
-    targetRoot.replaceChildren(
-      view(
-        (msg) => {
-          dispatch({ tag: "UiMsg", date: getNow(), msg });
-        },
-        model,
-        info
-      )
-    );
-    const firstFocusableElement = targetRoot.querySelector(`button, [tabindex]`);
-    if (manageFocus && firstFocusableElement instanceof HTMLElement) {
-      firstFocusableElement.focus();
-    }
-    __ELM_WATCH.ON_RENDER(TARGET_NAME);
-  }
-  var CLASS = {
-    browserUiPositionButton: "browserUiPositionButton",
-    browserUiPositionChooser: "browserUiPositionChooser",
-    chevronButton: "chevronButton",
-    compilationModeWithIcon: "compilationModeWithIcon",
-    container: "container",
-    debugModeIcon: "debugModeIcon",
-    envNotSet: "envNotSet",
-    errorLocationButton: "errorLocationButton",
-    errorTitle: "errorTitle",
-    expandedUiContainer: "expandedUiContainer",
-    flash: "flash",
-    overlay: "overlay",
-    overlayCloseButton: "overlayCloseButton",
-    root: "root",
-    rootBottomHalf: "rootBottomHalf",
-    shortStatusContainer: "shortStatusContainer",
-    targetName: "targetName",
-    targetRoot: "targetRoot"
-  };
-  function getStatusFlashType({
-    statusType,
-    statusTypeChanged,
-    hasReceivedHotReload,
-    uiRelatedUpdate,
-    errorOverlayVisible
-  }) {
-    switch (statusType) {
-      case "Success":
-        return statusTypeChanged && hasReceivedHotReload ? "success" : void 0;
-      case "Error":
-        return errorOverlayVisible ? statusTypeChanged && hasReceivedHotReload ? "error" : void 0 : uiRelatedUpdate ? void 0 : "error";
-      case "Waiting":
-        return void 0;
-    }
-  }
-  function flash(elements, flashType) {
-    for (const element of elements.targetRoot.querySelectorAll(
-      `.${CLASS.flash}`
-    )) {
-      element.setAttribute("data-flash", flashType);
-    }
-  }
-  var CHEVRON_UP = "\u25B2";
-  var CHEVRON_DOWN = "\u25BC";
-  var CSS = `
-input,
-button,
-select,
-textarea {
-  font-family: inherit;
-  font-size: inherit;
-  font-weight: inherit;
-  letter-spacing: inherit;
-  line-height: inherit;
-  color: inherit;
-  margin: 0;
-}
-
-fieldset {
-  display: grid;
-  gap: 0.25em;
-  margin: 0;
-  border: 1px solid var(--grey);
-  padding: 0.25em 0.75em 0.5em;
-}
-
-fieldset:disabled {
-  color: var(--grey);
-}
-
-p,
-dd {
-  margin: 0;
-}
-
-dl {
-  display: grid;
-  grid-template-columns: auto auto;
-  gap: 0.25em 1em;
-  margin: 0;
-  white-space: nowrap;
-}
-
-dt {
-  text-align: right;
-  color: var(--grey);
-}
-
-time {
-  display: inline-grid;
-  overflow: hidden;
-}
-
-time::after {
-  content: attr(data-format);
-  visibility: hidden;
-  height: 0;
-}
-
-.${CLASS.overlay} {
-  position: fixed;
-  z-index: -2;
-  inset: 0;
-  overflow-y: auto;
-  padding: 2ch 0;
-}
-
-.${CLASS.overlayCloseButton} {
-  position: fixed;
-  z-index: -1;
-  top: 0;
-  right: 0;
-  appearance: none;
-  padding: 1em;
-  border: none;
-  border-radius: 0;
-  background: none;
-  cursor: pointer;
-  font-size: 1.25em;
-  filter: drop-shadow(0 0 0.125em var(--backgroundColor));
-}
-
-.${CLASS.overlayCloseButton}::before,
-.${CLASS.overlayCloseButton}::after {
-  content: "";
-  display: block;
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 0.125em;
-  height: 1em;
-  background-color: var(--foregroundColor);
-  transform: translate(-50%, -50%) rotate(45deg);
-}
-
-.${CLASS.overlayCloseButton}::after {
-  transform: translate(-50%, -50%) rotate(-45deg);
-}
-
-.${CLASS.overlay},
-.${CLASS.overlay} pre {
-  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
-}
-
-.${CLASS.overlay} details {
-  --border-thickness: 0.125em;
-  border-top: var(--border-thickness) solid;
-  margin: 2ch 0;
-}
-
-.${CLASS.overlay} summary {
-  cursor: pointer;
-  pointer-events: none;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  padding: 0 2ch;
-  word-break: break-word;
-}
-
-.${CLASS.overlay} summary::-webkit-details-marker {
-  display: none;
-}
-
-.${CLASS.overlay} summary::marker {
-  content: none;
-}
-
-.${CLASS.overlay} summary > * {
-  pointer-events: auto;
-}
-
-.${CLASS.errorTitle} {
-  display: inline-block;
-  font-weight: bold;
-  --padding: 1ch;
-  padding: 0 var(--padding);
-  transform: translate(calc(var(--padding) * -1), calc(-50% - var(--border-thickness) / 2));
-}
-
-.${CLASS.errorTitle}::before {
-  content: "${CHEVRON_DOWN}";
-  display: inline-block;
-  margin-right: 1ch;
-  transform: translateY(-0.0625em);
-}
-
-details[open] > summary > .${CLASS.errorTitle}::before {
-  content: "${CHEVRON_UP}";
-}
-
-.${CLASS.errorLocationButton} {
-  appearance: none;
-  padding: 0;
-  border: none;
-  border-radius: 0;
-  background: none;
-  text-align: left;
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-.${CLASS.overlay} pre {
-  margin: 0;
-  padding: 2ch;
-  overflow-x: auto;
-}
-
-.${CLASS.root} {
-  all: initial;
-  --grey: #767676;
-  display: flex;
-  align-items: start;
-  overflow: auto;
-  max-height: 100vh;
-  max-width: 100vw;
-  color: black;
-  font-family: system-ui;
-}
-
-.${CLASS.rootBottomHalf} {
-  align-items: end;
-}
-
-.${CLASS.targetRoot} + .${CLASS.targetRoot} {
-  margin-left: -1px;
-}
-
-.${CLASS.targetRoot}:only-of-type .${CLASS.debugModeIcon},
-.${CLASS.targetRoot}:only-of-type .${CLASS.targetName} {
-  display: none;
-}
-
-.${CLASS.container} {
-  display: flex;
-  flex-direction: column-reverse;
-  background-color: white;
-  border: 1px solid var(--grey);
-}
-
-.${CLASS.rootBottomHalf} .${CLASS.container} {
-  flex-direction: column;
-}
-
-.${CLASS.envNotSet} {
-  display: grid;
-  gap: 0.75em;
-  margin: 2em 0;
-}
-
-.${CLASS.envNotSet},
-.${CLASS.root} pre {
-  border-left: 0.25em solid var(--grey);
-  padding-left: 0.5em;
-}
-
-.${CLASS.root} pre {
-  margin: 0;
-  white-space: pre-wrap;
-}
-
-.${CLASS.expandedUiContainer} {
-  padding: 1em;
-  padding-top: 0.75em;
-  display: grid;
-  gap: 0.75em;
-  outline: none;
-  contain: paint;
-}
-
-.${CLASS.rootBottomHalf} .${CLASS.expandedUiContainer} {
-  padding-bottom: 0.75em;
-}
-
-.${CLASS.expandedUiContainer}:is(.length0, .length1) {
-  grid-template-columns: min-content;
-}
-
-.${CLASS.expandedUiContainer} > dl {
-  justify-self: start;
-}
-
-.${CLASS.expandedUiContainer} label {
-  display: grid;
-  grid-template-columns: min-content auto;
-  align-items: center;
-  gap: 0.25em;
-}
-
-.${CLASS.expandedUiContainer} label.Disabled {
-  color: var(--grey);
-}
-
-.${CLASS.expandedUiContainer} label > small {
-  grid-column: 2;
-}
-
-.${CLASS.compilationModeWithIcon} {
-  display: flex;
-  align-items: center;
-  gap: 0.25em;
-}
-
-.${CLASS.browserUiPositionChooser} {
-  position: absolute;
-  display: grid;
-  grid-template-columns: min-content min-content;
-  pointer-events: none;
-}
-
-.${CLASS.browserUiPositionButton} {
-  appearance: none;
-  padding: 0;
-  border: none;
-  background: none;
-  border-radius: none;
-  pointer-events: auto;
-  width: 1em;
-  height: 1em;
-  text-align: center;
-  line-height: 1em;
-}
-
-.${CLASS.browserUiPositionButton}:hover {
-  background-color: rgba(0, 0, 0, 0.25);
-}
-
-.${CLASS.targetRoot}:not(:first-child) .${CLASS.browserUiPositionChooser} {
-  display: none;
-}
-
-.${CLASS.shortStatusContainer} {
-  line-height: 1;
-  padding: 0.25em;
-  cursor: pointer;
-  user-select: none;
-  display: flex;
-  align-items: center;
-  gap: 0.25em;
-}
-
-[data-flash]::before {
-  content: "";
-  position: absolute;
-  margin-top: 0.5em;
-  margin-left: 0.5em;
-  --size: min(500px, 100vmin);
-  width: var(--size);
-  height: var(--size);
-  border-radius: 50%;
-  animation: flash 0.7s 0.05s ease-out both;
-  pointer-events: none;
-}
-
-[data-flash="error"]::before {
-  background-color: #eb0000;
-}
-
-[data-flash="success"]::before {
-  background-color: #00b600;
-}
-
-@keyframes flash {
-  from {
-    transform: translate(-50%, -50%) scale(0);
-    opacity: 0.9;
-  }
-
-  to {
-    transform: translate(-50%, -50%) scale(1);
-    opacity: 0;
-  }
-}
-
-@keyframes nudge {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 0.8;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  [data-flash]::before {
-    transform: translate(-50%, -50%);
-    width: 2em;
-    height: 2em;
-    animation: nudge 0.25s ease-in-out 4 alternate forwards;
-  }
-}
-
-.${CLASS.chevronButton} {
-  appearance: none;
-  border: none;
-  border-radius: 0;
-  background: none;
-  padding: 0;
-  cursor: pointer;
-}
-`;
-  function view(dispatch, passedModel, info) {
-    const model = __ELM_WATCH.MOCKED_TIMINGS ? {
-      ...passedModel,
-      status: {
-        ...passedModel.status,
-        date: new Date("2022-02-05T13:10:05Z")
-      }
-    } : passedModel;
-    const statusData = {
-      ...statusIconAndText(model, info),
-      ...viewStatus(dispatch, model, info)
-    };
-    return h(
-      HTMLDivElement,
-      { className: CLASS.container },
-      model.uiExpanded ? viewExpandedUi(
-        model.status,
-        statusData,
-        info,
-        model.browserUiPosition,
-        dispatch
-      ) : void 0,
-      h(
-        HTMLDivElement,
-        {
-          className: CLASS.shortStatusContainer,
-          onclick: () => {
-            dispatch({ tag: "PressedChevron" });
-          }
-        },
-        h(
-          HTMLButtonElement,
-          {
-            className: CLASS.chevronButton,
-            attrs: { "aria-expanded": model.uiExpanded.toString() }
-          },
-          icon(
-            model.uiExpanded ? CHEVRON_UP : CHEVRON_DOWN,
-            model.uiExpanded ? "Collapse elm-watch" : "Expand elm-watch"
-          )
-        ),
-        compilationModeIcon(model.compilationMode),
-        icon(statusData.icon, statusData.status, {
-          className: CLASS.flash,
-          onanimationend: (event) => {
-            if (event.currentTarget instanceof HTMLElement) {
-              event.currentTarget.removeAttribute("data-flash");
-            }
-          }
-        }),
-        h(
-          HTMLTimeElement,
-          { dateTime: model.status.date.toISOString() },
-          formatTime(model.status.date)
-        ),
-        h(HTMLSpanElement, { className: CLASS.targetName }, TARGET_NAME)
-      )
-    );
-  }
-  function icon(emoji, alt, props) {
-    return h(
-      HTMLSpanElement,
-      { attrs: { "aria-label": alt }, ...props },
-      h(HTMLSpanElement, { attrs: { "aria-hidden": "true" } }, emoji)
-    );
-  }
-  function viewExpandedUi(status, statusData, info, browserUiPosition, dispatch) {
-    const items = [
-      ["target", info.targetName],
-      ["elm-watch", info.version],
-      ["web socket", printWebSocketUrl(info.webSocketUrl)],
-      [
-        "updated",
-        h(
-          HTMLTimeElement,
-          {
-            dateTime: status.date.toISOString(),
-            attrs: { "data-format": "2044-04-30 04:44:44" }
-          },
-          `${formatDate(status.date)} ${formatTime(status.date)}`
-        )
-      ],
-      ["status", statusData.status],
-      ...statusData.dl
-    ];
-    const browserUiPositionSendKey = statusToSpecialCaseSendKey(status);
-    return h(
-      HTMLDivElement,
-      {
-        className: `${CLASS.expandedUiContainer} length${statusData.content.length}`,
-        attrs: {
-          tabindex: "-1"
-        }
-      },
-      h(
-        HTMLDListElement,
-        {},
-        ...items.flatMap(([key, value]) => [
-          h(HTMLElement, { localName: "dt" }, key),
-          h(HTMLElement, { localName: "dd" }, value)
-        ])
-      ),
-      ...statusData.content,
-      browserUiPositionSendKey === void 0 ? void 0 : viewBrowserUiPositionChooser(
-        browserUiPosition,
-        dispatch,
-        browserUiPositionSendKey
-      )
-    );
-  }
-  var allBrowserUiPositionsInOrder = [
-    "TopLeft",
-    "TopRight",
-    "BottomLeft",
-    "BottomRight"
-  ];
-  function viewBrowserUiPositionChooser(currentPosition, dispatch, sendKey) {
-    const arrows = getBrowserUiPositionArrows(currentPosition);
-    return h(
-      HTMLDivElement,
-      {
-        className: CLASS.browserUiPositionChooser,
-        style: browserUiPositionToCssForChooser(currentPosition)
-      },
-      ...allBrowserUiPositionsInOrder.map((position) => {
-        const arrow = arrows[position];
-        return arrow === void 0 ? h(HTMLDivElement, { style: { visibility: "hidden" } }, "\xB7") : h(
-          HTMLButtonElement,
-          {
-            className: CLASS.browserUiPositionButton,
-            attrs: { "data-position": position },
-            onclick: () => {
-              dispatch({
-                tag: "ChangedBrowserUiPosition",
-                browserUiPosition: position,
-                sendKey
-              });
-            }
-          },
-          arrow
-        );
-      })
-    );
-  }
-  var ARROW_UP = "\u2191";
-  var ARROW_DOWN = "\u2193";
-  var ARROW_LEFT = "\u2190";
-  var ARROW_RIGHT = "\u2192";
-  var ARROW_UP_LEFT = "\u2196";
-  var ARROW_UP_RIGHT = "\u2197";
-  var ARROW_DOWN_LEFT = "\u2199";
-  var ARROW_DOWN_RIGHT = "\u2198";
-  function getBrowserUiPositionArrows(browserUiPosition) {
-    switch (browserUiPosition) {
-      case "TopLeft":
-        return {
-          TopLeft: void 0,
-          TopRight: ARROW_RIGHT,
-          BottomLeft: ARROW_DOWN,
-          BottomRight: ARROW_DOWN_RIGHT
-        };
-      case "TopRight":
-        return {
-          TopLeft: ARROW_LEFT,
-          TopRight: void 0,
-          BottomLeft: ARROW_DOWN_LEFT,
-          BottomRight: ARROW_DOWN
-        };
-      case "BottomLeft":
-        return {
-          TopLeft: ARROW_UP,
-          TopRight: ARROW_UP_RIGHT,
-          BottomLeft: void 0,
-          BottomRight: ARROW_RIGHT
-        };
-      case "BottomRight":
-        return {
-          TopLeft: ARROW_UP_LEFT,
-          TopRight: ARROW_UP,
-          BottomLeft: ARROW_LEFT,
-          BottomRight: void 0
-        };
-    }
-  }
-  function statusIconAndText(model, info) {
-    switch (model.status.tag) {
-      case "Busy":
-        return {
-          icon: "\u23F3",
-          status: "Waiting for compilation"
-        };
-      case "CompileError":
-        return {
-          icon: "\u{1F6A8}",
-          status: "Compilation error"
-        };
-      case "Connecting":
-        return {
-          icon: "\u{1F50C}",
-          status: "Connecting"
-        };
-      case "ElmJsonError":
-        return {
-          icon: "\u{1F6A8}",
-          status: "elm.json or inputs error"
-        };
-      case "EvalError":
-        return {
-          icon: "\u26D4\uFE0F",
-          status: "Eval error"
-        };
-      case "Idle":
-        return {
-          icon: idleIcon(info.initializedElmAppsStatus),
-          status: "Successfully compiled"
-        };
-      case "SleepingBeforeReconnect":
-        return {
-          icon: "\u{1F50C}",
-          status: "Sleeping"
-        };
-      case "UnexpectedError":
-        return {
-          icon: "\u274C",
-          status: "Unexpected error"
-        };
-      case "WaitingForReload":
-        return model.elmCompiledTimestamp === model.elmCompiledTimestampBeforeReload ? {
-          icon: "\u274C",
-          status: "Reload trouble"
-        } : {
-          icon: "\u23F3",
-          status: "Waiting for reload"
-        };
-    }
-  }
-  function viewStatus(dispatch, model, info) {
-    const { status, compilationMode } = model;
-    switch (status.tag) {
-      case "Busy":
-        return {
-          dl: [],
-          content: [
-            ...viewCompilationModeChooser({
-              dispatch,
-              sendKey: void 0,
-              compilationMode,
-              warnAboutCompilationModeMismatch: false,
-              info
-            }),
-            ...status.errorOverlay === void 0 ? [] : [viewErrorOverlayToggleButton(dispatch, status.errorOverlay)]
-          ]
-        };
-      case "CompileError":
-        return {
-          dl: [],
-          content: [
-            ...viewCompilationModeChooser({
-              dispatch,
-              sendKey: status.sendKey,
-              compilationMode,
-              warnAboutCompilationModeMismatch: true,
-              info
-            }),
-            viewErrorOverlayToggleButton(dispatch, status.errorOverlay),
-            ...status.openEditorError === void 0 ? [] : viewOpenEditorError(status.openEditorError)
-          ]
-        };
-      case "Connecting":
-        return {
-          dl: [
-            ["attempt", status.attemptNumber.toString()],
-            ["sleep", printRetryWaitMs(status.attemptNumber)]
-          ],
-          content: [
-            ...viewHttpsInfo(info.webSocketUrl),
-            h(HTMLButtonElement, { disabled: true }, "Connecting web socket\u2026")
-          ]
-        };
-      case "ElmJsonError":
-        return {
-          dl: [],
-          content: [
-            h(HTMLPreElement, { style: { minWidth: "80ch" } }, status.error)
-          ]
-        };
-      case "EvalError":
-        return {
-          dl: [],
-          content: [
-            h(
-              HTMLParagraphElement,
-              {},
-              "Check the console in the browser developer tools to see errors!"
-            )
-          ]
-        };
-      case "Idle":
-        return {
-          dl: [],
-          content: viewCompilationModeChooser({
-            dispatch,
-            sendKey: status.sendKey,
-            compilationMode,
-            warnAboutCompilationModeMismatch: true,
-            info
-          })
-        };
-      case "SleepingBeforeReconnect":
-        return {
-          dl: [
-            ["attempt", status.attemptNumber.toString()],
-            ["sleep", printRetryWaitMs(status.attemptNumber)]
-          ],
-          content: [
-            ...viewHttpsInfo(info.webSocketUrl),
-            h(
-              HTMLButtonElement,
-              {
-                onclick: () => {
-                  dispatch({ tag: "PressedReconnectNow" });
-                }
-              },
-              "Reconnect web socket now"
-            )
-          ]
-        };
-      case "UnexpectedError":
-        return {
-          dl: [],
-          content: [
-            h(
-              HTMLParagraphElement,
-              {},
-              "I ran into an unexpected error! This is the error message:"
-            ),
-            h(HTMLPreElement, {}, status.message)
-          ]
-        };
-      case "WaitingForReload":
-        return {
-          dl: [],
-          content: model.elmCompiledTimestamp === model.elmCompiledTimestampBeforeReload ? [
-            "A while ago I reloaded the page to get new compiled JavaScript.",
-            "But it looks like after the last page reload I got the same JavaScript as before, instead of new stuff!",
-            `The old JavaScript was compiled ${new Date(
-              model.elmCompiledTimestamp
-            ).toLocaleString()}, and so was the JavaScript currently running.`,
-            "I currently need to reload the page again, but fear a reload loop if I try.",
-            "Do you have accidental HTTP caching enabled maybe?",
-            "Try hard refreshing the page and see if that helps, and consider disabling HTTP caching during development."
-          ].map((text) => h(HTMLParagraphElement, {}, text)) : [h(HTMLParagraphElement, {}, "Waiting for other targets\u2026")]
-        };
-    }
-  }
-  function viewErrorOverlayToggleButton(dispatch, errorOverlay) {
-    return h(
-      HTMLButtonElement,
-      {
-        attrs: {
-          "data-test-id": errorOverlay.openErrorOverlay ? "HideErrorOverlayButton" : "ShowErrorOverlayButton"
-        },
-        onclick: () => {
-          dispatch({
-            tag: "ChangedOpenErrorOverlay",
-            openErrorOverlay: !errorOverlay.openErrorOverlay
-          });
-        }
-      },
-      errorOverlay.openErrorOverlay ? "Hide errors" : "Show errors"
-    );
-  }
-  function viewOpenEditorError(error) {
-    switch (error.tag) {
-      case "EnvNotSet":
-        return [
-          h(
-            HTMLDivElement,
-            { className: CLASS.envNotSet },
-            h(
-              HTMLParagraphElement,
-              {},
-              "\u2139\uFE0F Clicking error locations only works if you set it up."
-            ),
-            h(
-              HTMLParagraphElement,
-              {},
-              "Check this out: ",
-              h(
-                HTMLAnchorElement,
-                {
-                  href: "https://lydell.github.io/elm-watch/browser-ui/#clickable-error-locations",
-                  target: "_blank",
-                  rel: "noreferrer"
-                },
-                h(
-                  HTMLElement,
-                  { localName: "strong" },
-                  "Clickable error locations"
-                )
-              )
-            )
-          )
-        ];
-      case "CommandFailed":
-        return [
-          h(
-            HTMLParagraphElement,
-            {},
-            h(
-              HTMLElement,
-              { localName: "strong" },
-              "Opening the location in your editor failed!"
-            )
-          ),
-          h(HTMLPreElement, {}, error.message)
-        ];
-    }
-  }
-  function idleIcon(status) {
-    switch (status.tag) {
-      case "DecodeError":
-      case "MissingWindowElm":
-        return "\u274C";
-      case "NoProgramsAtAll":
-        return "\u2753";
-      case "DebuggerModeStatus":
-        return "\u2705";
-    }
-  }
-  function compilationModeIcon(compilationMode) {
-    switch (compilationMode) {
-      case "proxy":
-        return void 0;
-      case "debug":
-        return icon("\u{1F41B}", "Debug mode", { className: CLASS.debugModeIcon });
-      case "standard":
-        return void 0;
-      case "optimize":
-        return icon("\u{1F680}", "Optimize mode");
-    }
-  }
-  function printWebSocketUrl(url) {
-    const hostname = url.hostname.endsWith(".localhost") ? "localhost" : url.hostname;
-    return `${url.protocol}//${hostname}:${url.port}${url.pathname}`;
-  }
-  function viewHttpsInfo(webSocketUrl) {
-    return webSocketUrl.protocol === "wss:" ? [
-      h(
-        HTMLParagraphElement,
-        {},
-        h(HTMLElement, { localName: "strong" }, "Having trouble connecting?")
-      ),
-      h(HTMLParagraphElement, {}, "Setting up HTTPS can be a bit tricky."),
-      h(
-        HTMLParagraphElement,
-        {},
-        "Read all about ",
-        h(
-          HTMLAnchorElement,
-          {
-            href: "https://lydell.github.io/elm-watch/https/",
-            target: "_blank",
-            rel: "noreferrer"
-          },
-          "HTTPS with elm-watch"
-        ),
-        "."
-      )
-    ] : [];
-  }
-  var noDebuggerYetReason = "The Elm debugger isn't available at this point.";
-  function noDebuggerReason(noDebuggerProgramTypes) {
-    return `The Elm debugger isn't supported by ${humanList(
-      Array.from(noDebuggerProgramTypes, (programType) => `\`${programType}\``),
-      "and"
-    )} programs.`;
-  }
-  function humanList(list, joinWord) {
-    const { length } = list;
-    return length <= 1 ? list.join("") : length === 2 ? list.join(` ${joinWord} `) : `${list.slice(0, length - 2).join(", ")}, ${list.slice(-2).join(` ${joinWord} `)}`;
-  }
-  function viewCompilationModeChooser({
-    dispatch,
-    sendKey,
-    compilationMode: selectedMode,
-    warnAboutCompilationModeMismatch,
-    info
-  }) {
-    switch (info.initializedElmAppsStatus.tag) {
-      case "DecodeError":
-        return [
-          h(
-            HTMLParagraphElement,
-            {},
-            "window.Elm does not look like expected! This is the error message:"
-          ),
-          h(HTMLPreElement, {}, info.initializedElmAppsStatus.message)
-        ];
-      case "MissingWindowElm":
-        return [
-          h(
-            HTMLParagraphElement,
-            {},
-            "elm-watch requires ",
-            h(
-              HTMLAnchorElement,
-              {
-                href: "https://lydell.github.io/elm-watch/window.Elm/",
-                target: "_blank",
-                rel: "noreferrer"
-              },
-              "window.Elm"
-            ),
-            " to exist, but it is undefined!"
-          )
-        ];
-      case "NoProgramsAtAll":
-        return [
-          h(
-            HTMLParagraphElement,
-            {},
-            "It looks like no Elm apps were initialized by elm-watch. Check the console in the browser developer tools to see potential errors!"
-          )
-        ];
-      case "DebuggerModeStatus": {
-        const compilationModes = [
-          {
-            mode: "debug",
-            name: "Debug",
-            status: info.initializedElmAppsStatus.status
-          },
-          { mode: "standard", name: "Standard", status: { tag: "Enabled" } },
-          { mode: "optimize", name: "Optimize", status: { tag: "Enabled" } }
-        ];
-        return [
-          h(
-            HTMLFieldSetElement,
-            { disabled: sendKey === void 0 },
-            h(HTMLLegendElement, {}, "Compilation mode"),
-            ...compilationModes.map(({ mode, name, status }) => {
-              const nameWithIcon = h(
-                HTMLSpanElement,
-                { className: CLASS.compilationModeWithIcon },
-                name,
-                mode === selectedMode ? compilationModeIcon(mode) : void 0
-              );
-              return h(
-                HTMLLabelElement,
-                { className: status.tag },
-                h(HTMLInputElement, {
-                  type: "radio",
-                  name: `CompilationMode-${info.targetName}`,
-                  value: mode,
-                  checked: mode === selectedMode,
-                  disabled: sendKey === void 0 || status.tag === "Disabled",
-                  onchange: sendKey === void 0 ? void 0 : () => {
-                    dispatch({
-                      tag: "ChangedCompilationMode",
-                      compilationMode: mode,
-                      sendKey
-                    });
-                  }
-                }),
-                ...status.tag === "Enabled" ? [
-                  nameWithIcon,
-                  warnAboutCompilationModeMismatch && mode === selectedMode && selectedMode !== info.originalCompilationMode && info.originalCompilationMode !== "proxy" ? h(
-                    HTMLElement,
-                    { localName: "small" },
-                    `Note: The code currently running is in ${ORIGINAL_COMPILATION_MODE} mode.`
-                  ) : void 0
-                ] : [
-                  nameWithIcon,
-                  h(HTMLElement, { localName: "small" }, status.reason)
-                ]
-              );
-            })
-          )
-        ];
-      }
-    }
-  }
-  var DATA_TARGET_NAMES = "data-target-names";
-  function updateErrorOverlay(targetName, dispatch, sendKey, errors, overlay, overlayCloseButton) {
-    const existingErrorElements = new Map(
-      Array.from(overlay.children, (element) => [
-        element.id,
-        {
-          targetNames: new Set(
-            (element.getAttribute(DATA_TARGET_NAMES) ?? "").split("\n")
-          ),
-          element
-        }
-      ])
-    );
-    for (const [id, { targetNames, element }] of existingErrorElements) {
-      if (targetNames.has(targetName) && !errors.has(id)) {
-        targetNames.delete(targetName);
-        if (targetNames.size === 0) {
-          element.remove();
-        } else {
-          element.setAttribute(DATA_TARGET_NAMES, [...targetNames].join("\n"));
-        }
-      }
-    }
-    let previousElement = void 0;
-    for (const [id, error] of errors) {
-      const maybeExisting = existingErrorElements.get(id);
-      if (maybeExisting === void 0) {
-        const element = viewOverlayError(
-          targetName,
-          dispatch,
-          sendKey,
-          id,
-          error
-        );
-        if (previousElement === void 0) {
-          overlay.prepend(element);
-        } else {
-          previousElement.after(element);
-        }
-        overlay.style.backgroundColor = error.backgroundColor;
-        overlayCloseButton.style.setProperty(
-          "--foregroundColor",
-          error.foregroundColor
-        );
-        overlayCloseButton.style.setProperty(
-          "--backgroundColor",
-          error.backgroundColor
-        );
-        previousElement = element;
-      } else {
-        if (!maybeExisting.targetNames.has(targetName)) {
-          maybeExisting.element.setAttribute(
-            DATA_TARGET_NAMES,
-            [...maybeExisting.targetNames, targetName].join("\n")
-          );
-        }
-        previousElement = maybeExisting.element;
-      }
-    }
-    const hidden = !overlay.hasChildNodes();
-    overlay.hidden = hidden;
-    overlayCloseButton.hidden = hidden;
-    overlayCloseButton.style.right = `${overlay.offsetWidth - overlay.clientWidth}px`;
-  }
-  function viewOverlayError(targetName, dispatch, sendKey, id, error) {
-    return h(
-      HTMLDetailsElement,
-      {
-        open: true,
-        id,
-        style: {
-          backgroundColor: error.backgroundColor,
-          color: error.foregroundColor
-        },
-        attrs: {
-          [DATA_TARGET_NAMES]: targetName
-        }
-      },
-      h(
-        HTMLElement,
-        { localName: "summary" },
-        h(
-          HTMLSpanElement,
-          {
-            className: CLASS.errorTitle,
-            style: {
-              backgroundColor: error.backgroundColor
-            }
-          },
-          error.title
-        ),
-        error.location === void 0 ? void 0 : h(
-          HTMLParagraphElement,
-          {},
-          viewErrorLocation(dispatch, sendKey, error.location)
-        )
-      ),
-      h(HTMLPreElement, { innerHTML: error.htmlContent })
-    );
-  }
-  function viewErrorLocation(dispatch, sendKey, location) {
-    switch (location.tag) {
-      case "FileOnly":
-        return viewErrorLocationButton(
-          dispatch,
-          sendKey,
-          {
-            file: location.file,
-            line: 1,
-            column: 1
-          },
-          location.file.absolutePath
-        );
-      case "FileWithLineAndColumn": {
-        return viewErrorLocationButton(
-          dispatch,
-          sendKey,
-          location,
-          `${location.file.absolutePath}:${location.line}:${location.column}`
-        );
-      }
-      case "Target":
-        return `Target: ${location.targetName}`;
-    }
-  }
-  function viewErrorLocationButton(dispatch, sendKey, location, text) {
-    return sendKey === void 0 ? text : h(
-      HTMLButtonElement,
-      {
-        className: CLASS.errorLocationButton,
-        onclick: () => {
-          dispatch({
-            tag: "PressedOpenEditor",
-            file: location.file,
-            line: location.line,
-            column: location.column,
-            sendKey
-          });
-        }
-      },
-      text
-    );
-  }
-  if (typeof WebSocket !== "undefined") {
-    run();
-  }
-})();
 (function(scope){
 'use strict';
-
-var _Platform_effectManagers = {}, _Scheduler_enqueue; // added by elm-watch
 
 function F(arity, fun, wrapper) {
   wrapper.a = arity;
@@ -3209,7 +77,7 @@ function A9(fun, a, b, c, d, e, f, g, h, i) {
   return fun.a === 9 ? fun.f(a, b, c, d, e, f, g, h, i) : fun(a)(b)(c)(d)(e)(f)(g)(h)(i);
 }
 
-console.warn('Compiled in DEV mode. Follow the advice at https://elm-lang.org/0.19.1/optimize for better performance and smaller assets.');
+
 
 
 // EQUALITY
@@ -3245,7 +113,7 @@ function _Utils_eqHelp(x, y, depth, stack)
 		return true;
 	}
 
-	/**/
+	/**_UNUSED/
 	if (x.$ === 'Set_elm_builtin')
 	{
 		x = $elm$core$Set$toList(x);
@@ -3258,7 +126,7 @@ function _Utils_eqHelp(x, y, depth, stack)
 	}
 	//*/
 
-	/**_UNUSED/
+	/**/
 	if (x.$ < 0)
 	{
 		x = $elm$core$Dict$toList(x);
@@ -3293,7 +161,7 @@ function _Utils_cmp(x, y, ord)
 		return x === y ? /*EQ*/ 0 : x < y ? /*LT*/ -1 : /*GT*/ 1;
 	}
 
-	/**/
+	/**_UNUSED/
 	if (x instanceof String)
 	{
 		var a = x.valueOf();
@@ -3302,10 +170,10 @@ function _Utils_cmp(x, y, ord)
 	}
 	//*/
 
-	/**_UNUSED/
+	/**/
 	if (typeof x.$ === 'undefined')
 	//*/
-	/**/
+	/**_UNUSED/
 	if (x.$[0] === '#')
 	//*/
 	{
@@ -3335,17 +203,17 @@ var _Utils_compare = F2(function(x, y)
 
 // COMMON VALUES
 
-var _Utils_Tuple0_UNUSED = 0;
-var _Utils_Tuple0 = { $: '#0' };
+var _Utils_Tuple0 = 0;
+var _Utils_Tuple0_UNUSED = { $: '#0' };
 
-function _Utils_Tuple2_UNUSED(a, b) { return { a: a, b: b }; }
-function _Utils_Tuple2(a, b) { return { $: '#2', a: a, b: b }; }
+function _Utils_Tuple2(a, b) { return { a: a, b: b }; }
+function _Utils_Tuple2_UNUSED(a, b) { return { $: '#2', a: a, b: b }; }
 
-function _Utils_Tuple3_UNUSED(a, b, c) { return { a: a, b: b, c: c }; }
-function _Utils_Tuple3(a, b, c) { return { $: '#3', a: a, b: b, c: c }; }
+function _Utils_Tuple3(a, b, c) { return { a: a, b: b, c: c }; }
+function _Utils_Tuple3_UNUSED(a, b, c) { return { $: '#3', a: a, b: b, c: c }; }
 
-function _Utils_chr_UNUSED(c) { return c; }
-function _Utils_chr(c) { return new String(c); }
+function _Utils_chr(c) { return c; }
+function _Utils_chr_UNUSED(c) { return new String(c); }
 
 
 // RECORDS
@@ -3396,11 +264,11 @@ function _Utils_ap(xs, ys)
 
 
 
-var _List_Nil_UNUSED = { $: 0 };
-var _List_Nil = { $: '[]' };
+var _List_Nil = { $: 0 };
+var _List_Nil_UNUSED = { $: '[]' };
 
-function _List_Cons_UNUSED(hd, tl) { return { $: 1, a: hd, b: tl }; }
-function _List_Cons(hd, tl) { return { $: '::', a: hd, b: tl }; }
+function _List_Cons(hd, tl) { return { $: 1, a: hd, b: tl }; }
+function _List_Cons_UNUSED(hd, tl) { return { $: '::', a: hd, b: tl }; }
 
 
 var _List_cons = F2(_List_Cons);
@@ -3631,12 +499,12 @@ var _JsArray_appendN = F3(function(n, dest, source)
 
 // LOG
 
-var _Debug_log_UNUSED = F2(function(tag, value)
+var _Debug_log = F2(function(tag, value)
 {
 	return value;
 });
 
-var _Debug_log = F2(function(tag, value)
+var _Debug_log_UNUSED = F2(function(tag, value)
 {
 	console.log(tag + ': ' + _Debug_toString(value));
 	return value;
@@ -3662,12 +530,12 @@ function _Debug_todoCase(moduleName, region, value)
 
 // TO STRING
 
-function _Debug_toString_UNUSED(value)
+function _Debug_toString(value)
 {
 	return '<internals>';
 }
 
-function _Debug_toString(value)
+function _Debug_toString_UNUSED(value)
 {
 	return _Debug_toAnsiString(false, value);
 }
@@ -3852,13 +720,13 @@ function _Debug_toHexDigit(n)
 // CRASH
 
 
-function _Debug_crash_UNUSED(identifier)
+function _Debug_crash(identifier)
 {
 	throw new Error('https://github.com/elm/core/blob/1.0.0/hints/' + identifier + '.md');
 }
 
 
-function _Debug_crash(identifier, fact1, fact2, fact3, fact4)
+function _Debug_crash_UNUSED(identifier, fact1, fact2, fact3, fact4)
 {
 	switch(identifier)
 	{
@@ -3916,11 +784,11 @@ function _Debug_crash(identifier, fact1, fact2, fact3, fact4)
 
 function _Debug_regionToString(region)
 {
-	if (region.start.line === region.end.line)
+	if (region.aq.Q === region.aC.Q)
 	{
-		return 'on line ' + region.start.line;
+		return 'on line ' + region.aq.Q;
 	}
-	return 'on lines ' + region.start.line + ' through ' + region.end.line;
+	return 'on lines ' + region.aq.Q + ' through ' + region.aC.Q;
 }
 
 
@@ -4344,7 +1212,7 @@ function _Char_toLocaleLower(char)
 
 
 
-/**/
+/**_UNUSED/
 function _Json_errorToString(error)
 {
 	return $elm$json$Json$Decode$errorToString(error);
@@ -4748,11 +1616,11 @@ var _Json_encode = F2(function(indentLevel, value)
 	return JSON.stringify(_Json_unwrap(value), null, indentLevel) + '';
 });
 
-function _Json_wrap(value) { return { $: 0, a: value }; }
-function _Json_unwrap(value) { return value.a; }
+function _Json_wrap_UNUSED(value) { return { $: 0, a: value }; }
+function _Json_unwrap_UNUSED(value) { return value.a; }
 
-function _Json_wrap_UNUSED(value) { return value; }
-function _Json_unwrap_UNUSED(value) { return value; }
+function _Json_wrap(value) { return value; }
+function _Json_unwrap(value) { return value; }
 
 function _Json_emptyArray() { return []; }
 function _Json_emptyObject() { return {}; }
@@ -4794,14 +1662,12 @@ function _Scheduler_fail(error)
 	};
 }
 
-// This function was slightly modified by elm-watch.
 function _Scheduler_binding(callback)
 {
 	return {
 		$: 2,
 		b: callback,
-		// c: null // commented out by elm-watch
-		c: Function.prototype // added by elm-watch
+		c: null
 	};
 }
 
@@ -4944,8 +1810,7 @@ function _Scheduler_step(proc)
 			proc.f.c = proc.f.b(function(newRoot) {
 				proc.f = newRoot;
 				_Scheduler_enqueue(proc);
-			// }); // commented out by elm-watch
-			}) || Function.prototype; // added by elm-watch
+			});
 			return;
 		}
 		else if (rootTag === 5)
@@ -4987,19 +1852,14 @@ function _Process_sleep(time)
 // PROGRAMS
 
 
-// This function was slightly modified by elm-watch.
 var _Platform_worker = F4(function(impl, flagDecoder, debugMetadata, args)
 {
 	return _Platform_initialize(
-		"Platform.worker", // added by elm-watch
-		false, // isDebug, added by elm-watch
-		debugMetadata, // added by elm-watch
 		flagDecoder,
 		args,
-		impl.init,
-		// impl.update, // commented out by elm-watch
-		// impl.subscriptions, // commented out by elm-watch
-		impl, // added by elm-watch
+		impl.bo,
+		impl.bA,
+		impl.bz,
 		function() { return function() {} }
 	);
 });
@@ -5009,178 +1869,26 @@ var _Platform_worker = F4(function(impl, flagDecoder, debugMetadata, args)
 // INITIALIZE A PROGRAM
 
 
-// This whole function was changed by elm-watch.
-function _Platform_initialize(programType, isDebug, debugMetadata, flagDecoder, args, init, impl, stepperBuilder)
+function _Platform_initialize(flagDecoder, args, init, update, subscriptions, stepperBuilder)
 {
-	if (args === "__elmWatchReturnData") {
-		return { impl: impl, debugMetadata: debugMetadata, flagDecoder : flagDecoder, programType: programType };
-	}
-
-	var flags = _Json_wrap(args ? args['flags'] : undefined);
-	var flagResult = A2(_Json_run, flagDecoder, flags);
-	$elm$core$Result$isOk(flagResult) || _Debug_crash(2 /**/, _Json_errorToString(flagResult.a) /**/);
+	var result = A2(_Json_run, flagDecoder, _Json_wrap(args ? args['flags'] : undefined));
+	$elm$core$Result$isOk(result) || _Debug_crash(2 /**_UNUSED/, _Json_errorToString(result.a) /**/);
 	var managers = {};
-	var initUrl = programType === "Browser.application" ? _Browser_getUrl() : undefined;
-	globalThis.__ELM_WATCH.INIT_URL = initUrl;
-	var initPair = init(flagResult.a);
+	var initPair = init(result.a);
 	var model = initPair.a;
 	var stepper = stepperBuilder(sendToApp, model);
 	var ports = _Platform_setupEffects(managers, sendToApp);
-	var update;
-	var subscriptions;
 
-	function setUpdateAndSubscriptions() {
-		update = impl.update || impl._impl.update;
-		subscriptions = impl.subscriptions || impl._impl.subscriptions;
-		if (isDebug) {
-			update = $elm$browser$Debugger$Main$wrapUpdate(update);
-			subscriptions = $elm$browser$Debugger$Main$wrapSubs(subscriptions);
-		}
-	}
-
-	function sendToApp(msg, viewMetadata) {
+	function sendToApp(msg, viewMetadata)
+	{
 		var pair = A2(update, msg, model);
 		stepper(model = pair.a, viewMetadata);
 		_Platform_enqueueEffects(managers, pair.b, subscriptions(model));
 	}
 
-	setUpdateAndSubscriptions();
 	_Platform_enqueueEffects(managers, initPair.b, subscriptions(model));
 
-	function __elmWatchHotReload(newData, new_Platform_effectManagers, new_Scheduler_enqueue, moduleName) {
-		_Platform_enqueueEffects(managers, _Platform_batch(_List_Nil), _Platform_batch(_List_Nil));
-		_Scheduler_enqueue = new_Scheduler_enqueue;
-
-		var reloadReasons = [];
-
-		for (var key in new_Platform_effectManagers) {
-			var manager = new_Platform_effectManagers[key];
-			if (!(key in _Platform_effectManagers)) {
-				_Platform_effectManagers[key] = manager;
-				managers[key] = _Platform_instantiateManager(manager, sendToApp);
-				if (manager.a) {
-					reloadReasons.push("a new port '" + key + "' was added. The idea is to give JavaScript code a chance to set it up!");
-					manager.a(key, sendToApp)
-				}
-			}
-		}
-
-		for (var key in newData.impl) {
-			if (key === "_impl" && impl._impl) {
-				for (var subKey in newData.impl[key]) {
-					impl._impl[subKey] = newData.impl[key][subKey];
-				}
-			} else {
-				impl[key] = newData.impl[key];
-			}
-		}
-
-		var newFlagResult = A2(_Json_run, newData.flagDecoder, flags);
-		if (!$elm$core$Result$isOk(newFlagResult)) {
-			return reloadReasons.concat("the flags type in `" + moduleName + "` changed and now the passed flags aren't correct anymore. The idea is to try to run with new flags!\nThis is the error:\n" + _Json_errorToString(newFlagResult.a));
-		}
-		if (!_Utils_eq_elmWatchInternal(debugMetadata, newData.debugMetadata)) {
-			return reloadReasons.concat("the message type in `" + moduleName + '` changed in debug mode ("debug metadata" changed).');
-		}
-		init = impl.init || impl._impl.init;
-		if (isDebug) {
-			init = A3($elm$browser$Debugger$Main$wrapInit, _Json_wrap(newData.debugMetadata), initPair.a.popout, init);
-		}
-		globalThis.__ELM_WATCH.INIT_URL = initUrl;
-		var newInitPair = init(newFlagResult.a);
-		if (!_Utils_eq_elmWatchInternal(initPair, newInitPair)) {
-			return reloadReasons.concat("`" + moduleName + ".init` returned something different than last time. Let's start fresh!");
-		}
-
-		setUpdateAndSubscriptions();
-		stepper(model, true /* isSync */);
-		_Platform_enqueueEffects(managers, _Platform_batch(_List_Nil), subscriptions(model));
-		return reloadReasons;
-	}
-
-	return Object.defineProperties(
-		ports ? { ports: ports } : {},
-		{
-			__elmWatchHotReload: { value: __elmWatchHotReload },
-			__elmWatchProgramType: { value: programType },
-		}
-	);
-}
-
-// This whole function was added by elm-watch.
-// Copy-paste of _Utils_eq but does not assume that x and y have the same type,
-// and considers functions to always be equal.
-function _Utils_eq_elmWatchInternal(x, y)
-{
-	for (
-		var pair, stack = [], isEqual = _Utils_eqHelp_elmWatchInternal(x, y, 0, stack);
-		isEqual && (pair = stack.pop());
-		isEqual = _Utils_eqHelp_elmWatchInternal(pair.a, pair.b, 0, stack)
-		)
-	{}
-
-	return isEqual;
-}
-
-// This whole function was added by elm-watch.
-function _Utils_eqHelp_elmWatchInternal(x, y, depth, stack)
-{
-	if (x === y) {
-		return true;
-	}
-
-	var xType = _Utils_typeof_elmWatchInternal(x);
-	var yType = _Utils_typeof_elmWatchInternal(y);
-
-	if (xType !== yType) {
-		return false;
-	}
-
-	switch (xType) {
-		case "primitive":
-			return false;
-		case "function":
-			return true;
-	}
-
-	if (x.$ !== y.$) {
-		return false;
-	}
-
-	if (x.$ === 'Set_elm_builtin') {
-		x = $elm$core$Set$toList(x);
-		y = $elm$core$Set$toList(y);
-	} else if (x.$ === 'RBNode_elm_builtin' || x.$ === 'RBEmpty_elm_builtin' || x.$ < 0) {
-		x = $elm$core$Dict$toList(x);
-		y = $elm$core$Dict$toList(y);
-	}
-
-	if (Object.keys(x).length !== Object.keys(y).length) {
-		return false;
-	}
-
-	if (depth > 100) {
-		stack.push(_Utils_Tuple2(x, y));
-		return true;
-	}
-
-	for (var key in x) {
-		if (!_Utils_eqHelp_elmWatchInternal(x[key], y[key], depth + 1, stack)) {
-			return false;
-		}
-	}
-	return true;
-}
-
-// This whole function was added by elm-watch.
-function _Utils_typeof_elmWatchInternal(x)
-{
-	var type = typeof x;
-	return type === "function"
-		? "function"
-		: type !== "object" || type === null
-		? "primitive"
-		: "objectOrArray";
+	return ports ? { ports: ports } : {};
 }
 
 
@@ -5608,7 +2316,7 @@ function _Platform_setupIncomingPort(name, sendToApp)
 //
 
 
-function _Platform_export_UNUSED(exports)
+function _Platform_export(exports)
 {
 	scope['Elm']
 		? _Platform_mergeExportsProd(scope['Elm'], exports)
@@ -5629,55 +2337,11 @@ function _Platform_mergeExportsProd(obj, exports)
 }
 
 
-// This whole function was changed by elm-watch.
-function _Platform_export(exports)
+function _Platform_export_UNUSED(exports)
 {
-	var reloadReasons = _Platform_mergeExportsElmWatch('Elm', scope['Elm'] || (scope['Elm'] = {}), exports);
-	if (reloadReasons.length > 0) {
-		throw new Error(["ELM_WATCH_RELOAD_NEEDED"].concat(Array.from(new Set(reloadReasons))).join("\n\n---\n\n"));
-	}
-}
-
-// This whole function was added by elm-watch.
-function _Platform_mergeExportsElmWatch(moduleName, obj, exports)
-{
-	var reloadReasons = [];
-	for (var name in exports) {
-		if (name === "init") {
-			if ("init" in obj) {
-				if ("__elmWatchApps" in obj) {
-					var data = exports.init("__elmWatchReturnData");
-					for (var index = 0; index < obj.__elmWatchApps.length; index++) {
-						var app = obj.__elmWatchApps[index];
-						if (app.__elmWatchProgramType !== data.programType) {
-							reloadReasons.push("`" + moduleName + ".main` changed from `" + app.__elmWatchProgramType + "` to `" + data.programType + "`.");
-						} else {
-							try {
-								var innerReasons = app.__elmWatchHotReload(data, _Platform_effectManagers, _Scheduler_enqueue, moduleName);
-								reloadReasons = reloadReasons.concat(innerReasons);
-							} catch (error) {
-								reloadReasons.push("hot reload for `" + moduleName + "` failed, probably because of incompatible model changes.\nThis is the error:\n" + error + "\n" + (error ? error.stack : ""));
-							}
-						}
-					}
-				} else {
-					throw new Error("elm-watch: I'm trying to create `" + moduleName + ".init`, but it already exists and wasn't created by elm-watch. Maybe a duplicate script is getting loaded accidentally?");
-				}
-			} else {
-				obj.__elmWatchApps = [];
-				obj.init = function() {
-					var app = exports.init.apply(exports, arguments);
-					obj.__elmWatchApps.push(app);
-					globalThis.__ELM_WATCH.ON_INIT();
-					return app;
-				};
-			}
-		} else {
-			var innerReasons = _Platform_mergeExportsElmWatch(moduleName + "." + name, obj[name] || (obj[name] = {}), exports[name]);
-			reloadReasons = reloadReasons.concat(innerReasons);
-		}
-	}
-	return reloadReasons;
+	scope['Elm']
+		? _Platform_mergeExportsDebug('Elm', scope['Elm'], exports)
+		: scope['Elm'] = exports;
 }
 
 
@@ -5709,41 +2373,23 @@ function _VirtualDom_appendChild(parent, child)
 	parent.appendChild(child);
 }
 
-// This whole function was changed by elm-watch.
 var _VirtualDom_init = F4(function(virtualNode, flagDecoder, debugMetadata, args)
 {
-	var programType = "Html";
+	// NOTE: this function needs _Platform_export available to work
 
-	if (args === "__elmWatchReturnData") {
-		return { virtualNode: virtualNode, programType: programType };
-	}
-
-	/**_UNUSED/ // always UNUSED with elm-watch
+	/**/
 	var node = args['node'];
 	//*/
-	/**/
+	/**_UNUSED/
 	var node = args && args['node'] ? args['node'] : _Debug_crash(0);
 	//*/
 
-	var nextNode = _VirtualDom_render(virtualNode, function() {});
-	node.parentNode.replaceChild(nextNode, node);
-	node = nextNode;
-	var sendToApp = function() {};
-
-	function __elmWatchHotReload(newData) {
-		var patches = _VirtualDom_diff(virtualNode, newData.virtualNode);
-		node = _VirtualDom_applyPatches(node, virtualNode, patches, sendToApp);
-		virtualNode = newData.virtualNode;
-		return [];
-	}
-
-	return Object.defineProperties(
-		{},
-		{
-			__elmWatchHotReload: { value: __elmWatchHotReload },
-			__elmWatchProgramType: { value: programType },
-		}
+	node.parentNode.replaceChild(
+		_VirtualDom_render(virtualNode, function() {}),
+		node
 	);
+
+	return {};
 });
 
 
@@ -6009,14 +2655,14 @@ function _VirtualDom_noInnerHtmlOrFormAction(key)
 function _VirtualDom_noJavaScriptUri(value)
 {
 	return _VirtualDom_RE_js.test(value)
-		? /**_UNUSED/''//*//**/'javascript:alert("This is an XSS vector. Please use ports or web components instead.")'//*/
+		? /**/''//*//**_UNUSED/'javascript:alert("This is an XSS vector. Please use ports or web components instead.")'//*/
 		: value;
 }
 
 function _VirtualDom_noJavaScriptOrHtmlUri(value)
 {
 	return _VirtualDom_RE_js_html.test(value)
-		? /**_UNUSED/''//*//**/'javascript:alert("This is an XSS vector. Please use ports or web components instead.")'//*/
+		? /**/''//*//**_UNUSED/'javascript:alert("This is an XSS vector. Please use ports or web components instead.")'//*/
 		: value;
 }
 
@@ -6024,7 +2670,7 @@ function _VirtualDom_noJavaScriptOrHtmlJson(value)
 {
 	return (typeof _Json_unwrap(value) === 'string' && _VirtualDom_RE_js_html.test(_Json_unwrap(value)))
 		? _Json_wrap(
-			/**_UNUSED/''//*//**/'javascript:alert("This is an XSS vector. Please use ports or web components instead.")'//*/
+			/**/''//*//**_UNUSED/'javascript:alert("This is an XSS vector. Please use ports or web components instead.")'//*/
 		) : value;
 }
 
@@ -6073,9 +2719,9 @@ var _VirtualDom_mapEventTuple = F2(function(func, tuple)
 var _VirtualDom_mapEventRecord = F2(function(func, record)
 {
 	return {
-		message: func(record.message),
-		stopPropagation: record.stopPropagation,
-		preventDefault: record.preventDefault
+		z: func(record.z),
+		ar: record.ar,
+		ao: record.ao
 	}
 });
 
@@ -6343,11 +2989,11 @@ function _VirtualDom_makeCallback(eventNode, initialHandler)
 		// 3 = Custom
 
 		var value = result.a;
-		var message = !tag ? value : tag < 3 ? value.a : value.message;
-		var stopPropagation = tag == 1 ? value.b : tag == 3 && value.stopPropagation;
+		var message = !tag ? value : tag < 3 ? value.a : value.z;
+		var stopPropagation = tag == 1 ? value.b : tag == 3 && value.ar;
 		var currentEventNode = (
 			stopPropagation && event.stopPropagation(),
-			(tag == 2 ? value.b : tag == 3 && value.preventDefault) && event.preventDefault(),
+			(tag == 2 ? value.b : tag == 3 && value.ao) && event.preventDefault(),
 			eventNode
 		);
 		var tagger;
@@ -7292,33 +3938,27 @@ function _VirtualDom_dekey(keyedNode)
 
 var _Debugger_element;
 
-// This function was slightly modified by elm-watch.
 var _Browser_element = _Debugger_element || F4(function(impl, flagDecoder, debugMetadata, args)
 {
 	return _Platform_initialize(
-		impl._impl ? "Browser.sandbox" : "Browser.element", // added by elm-watch
-		false, // isDebug, added by elm-watch
-		debugMetadata, // added by elm-watch
 		flagDecoder,
 		args,
-		impl.init,
-		// impl.update, // commented out by elm-watch
-		// impl.subscriptions, // commented out by elm-watch
-		impl, // added by elm-watch
+		impl.bo,
+		impl.bA,
+		impl.bz,
 		function(sendToApp, initialModel) {
-			// var view = impl.view; // commented out by elm-watch
-			/**_UNUSED/ // always UNUSED with elm-watch
+			var view = impl.bB;
+			/**/
 			var domNode = args['node'];
 			//*/
-			/**/
+			/**_UNUSED/
 			var domNode = args && args['node'] ? args['node'] : _Debug_crash(0);
 			//*/
 			var currNode = _VirtualDom_virtualize(domNode);
 
 			return _Browser_makeAnimator(initialModel, function(model)
 			{
-				// var nextNode = view(model); // commented out by elm-watch
-				var nextNode = impl.view(model); // added by elm-watch
+				var nextNode = view(model);
 				var patches = _VirtualDom_diff(currNode, nextNode);
 				domNode = _VirtualDom_applyPatches(domNode, currNode, patches, sendToApp);
 				currNode = nextNode;
@@ -7334,36 +3974,30 @@ var _Browser_element = _Debugger_element || F4(function(impl, flagDecoder, debug
 
 var _Debugger_document;
 
-// This function was slightly modified by elm-watch.
 var _Browser_document = _Debugger_document || F4(function(impl, flagDecoder, debugMetadata, args)
 {
 	return _Platform_initialize(
-		impl._impl ? "Browser.application" : "Browser.document", // added by elm-watch
-		false, // isDebug, added by elm-watch
-		debugMetadata, // added by elm-watch
 		flagDecoder,
 		args,
-		impl.init,
-		// impl.update, // commented out by elm-watch
-		// impl.subscriptions, // commented out by elm-watch
-		impl, // added by elm-watch
+		impl.bo,
+		impl.bA,
+		impl.bz,
 		function(sendToApp, initialModel) {
-			var divertHrefToApp = impl.setup && impl.setup(sendToApp)
-			// var view = impl.view; // commented out by elm-watch
+			var divertHrefToApp = impl.ap && impl.ap(sendToApp)
+			var view = impl.bB;
 			var title = _VirtualDom_doc.title;
 			var bodyNode = _VirtualDom_doc.body;
 			var currNode = _VirtualDom_virtualize(bodyNode);
 			return _Browser_makeAnimator(initialModel, function(model)
 			{
 				_VirtualDom_divertHrefToApp = divertHrefToApp;
-				// var doc = view(model); // commented out by elm-watch
-				var doc = impl.view(model); // added by elm-watch
-				var nextNode = _VirtualDom_node('body')(_List_Nil)(doc.body);
+				var doc = view(model);
+				var nextNode = _VirtualDom_node('body')(_List_Nil)(doc.be);
 				var patches = _VirtualDom_diff(currNode, nextNode);
 				bodyNode = _VirtualDom_applyPatches(bodyNode, currNode, patches, sendToApp);
 				currNode = nextNode;
 				_VirtualDom_divertHrefToApp = 0;
-				(title !== doc.title) && (_VirtualDom_doc.title = title = doc.title);
+				(title !== doc._) && (_VirtualDom_doc.title = title = doc._);
 			});
 		}
 	);
@@ -7417,16 +4051,14 @@ function _Browser_makeAnimator(model, draw)
 // APPLICATION
 
 
-// This function was slightly modified by elm-watch.
 function _Browser_application(impl)
 {
-	// var onUrlChange = impl.onUrlChange; // commented out by elm-watch
-	// var onUrlRequest = impl.onUrlRequest; // commented out by elm-watch
-	// var key = function() { key.a(onUrlChange(_Browser_getUrl())); }; // commented out by elm-watch
-	var key = function() { key.a(impl.onUrlChange(_Browser_getUrl())); }; // added by elm-watch
+	var onUrlChange = impl.bu;
+	var onUrlRequest = impl.bv;
+	var key = function() { key.a(onUrlChange(_Browser_getUrl())); };
 
 	return _Browser_document({
-		setup: function(sendToApp)
+		ap: function(sendToApp)
 		{
 			key.a = sendToApp;
 			_Browser_window.addEventListener('popstate', key);
@@ -7440,11 +4072,11 @@ function _Browser_application(impl)
 					var href = domNode.href;
 					var curr = _Browser_getUrl();
 					var next = $elm$url$Url$fromString(href).a;
-					sendToApp(impl.onUrlRequest(
+					sendToApp(onUrlRequest(
 						(next
-							&& curr.protocol === next.protocol
-							&& curr.host === next.host
-							&& curr.port_.a === next.port_.a
+							&& curr.aW === next.aW
+							&& curr.aJ === next.aJ
+							&& curr.aS.a === next.aS.a
 						)
 							? $elm$browser$Browser$Internal(next)
 							: $elm$browser$Browser$External(href)
@@ -7452,16 +4084,13 @@ function _Browser_application(impl)
 				}
 			});
 		},
-		init: function(flags)
+		bo: function(flags)
 		{
-			// return A3(impl.init, flags, _Browser_getUrl(), key); // commented out by elm-watch
-			return A3(impl.init, flags, globalThis.__ELM_WATCH.INIT_URL, key); // added by elm-watch
+			return A3(impl.bo, flags, _Browser_getUrl(), key);
 		},
-		// view: impl.view, // commented out by elm-watch
-		// update: impl.update, // commented out by elm-watch
-		// subscriptions: impl.subscriptions // commented out by elm-watch
-		view: function(model) { return impl.view(model); }, // added by elm-watch
-		_impl: impl // added by elm-watch
+		bB: impl.bB,
+		bA: impl.bA,
+		bz: impl.bz
 	});
 }
 
@@ -7527,17 +4156,17 @@ var _Browser_decodeEvent = F2(function(decoder, event)
 function _Browser_visibilityInfo()
 {
 	return (typeof _VirtualDom_doc.hidden !== 'undefined')
-		? { hidden: 'hidden', change: 'visibilitychange' }
+		? { bl: 'hidden', bg: 'visibilitychange' }
 		:
 	(typeof _VirtualDom_doc.mozHidden !== 'undefined')
-		? { hidden: 'mozHidden', change: 'mozvisibilitychange' }
+		? { bl: 'mozHidden', bg: 'mozvisibilitychange' }
 		:
 	(typeof _VirtualDom_doc.msHidden !== 'undefined')
-		? { hidden: 'msHidden', change: 'msvisibilitychange' }
+		? { bl: 'msHidden', bg: 'msvisibilitychange' }
 		:
 	(typeof _VirtualDom_doc.webkitHidden !== 'undefined')
-		? { hidden: 'webkitHidden', change: 'webkitvisibilitychange' }
-		: { hidden: 'hidden', change: 'visibilitychange' };
+		? { bl: 'webkitHidden', bg: 'webkitvisibilitychange' }
+		: { bl: 'hidden', bg: 'visibilitychange' };
 }
 
 
@@ -7618,12 +4247,12 @@ var _Browser_call = F2(function(functionName, id)
 function _Browser_getViewport()
 {
 	return {
-		scene: _Browser_getScene(),
-		viewport: {
-			x: _Browser_window.pageXOffset,
-			y: _Browser_window.pageYOffset,
-			width: _Browser_doc.documentElement.clientWidth,
-			height: _Browser_doc.documentElement.clientHeight
+		a0: _Browser_getScene(),
+		a6: {
+			ba: _Browser_window.pageXOffset,
+			bb: _Browser_window.pageYOffset,
+			a9: _Browser_doc.documentElement.clientWidth,
+			aH: _Browser_doc.documentElement.clientHeight
 		}
 	};
 }
@@ -7633,8 +4262,8 @@ function _Browser_getScene()
 	var body = _Browser_doc.body;
 	var elem = _Browser_doc.documentElement;
 	return {
-		width: Math.max(body.scrollWidth, body.offsetWidth, elem.scrollWidth, elem.offsetWidth, elem.clientWidth),
-		height: Math.max(body.scrollHeight, body.offsetHeight, elem.scrollHeight, elem.offsetHeight, elem.clientHeight)
+		a9: Math.max(body.scrollWidth, body.offsetWidth, elem.scrollWidth, elem.offsetWidth, elem.clientWidth),
+		aH: Math.max(body.scrollHeight, body.offsetHeight, elem.scrollHeight, elem.offsetHeight, elem.clientHeight)
 	};
 }
 
@@ -7657,15 +4286,15 @@ function _Browser_getViewportOf(id)
 	return _Browser_withNode(id, function(node)
 	{
 		return {
-			scene: {
-				width: node.scrollWidth,
-				height: node.scrollHeight
+			a0: {
+				a9: node.scrollWidth,
+				aH: node.scrollHeight
 			},
-			viewport: {
-				x: node.scrollLeft,
-				y: node.scrollTop,
-				width: node.clientWidth,
-				height: node.clientHeight
+			a6: {
+				ba: node.scrollLeft,
+				bb: node.scrollTop,
+				a9: node.clientWidth,
+				aH: node.clientHeight
 			}
 		};
 	});
@@ -7695,18 +4324,18 @@ function _Browser_getElement(id)
 		var x = _Browser_window.pageXOffset;
 		var y = _Browser_window.pageYOffset;
 		return {
-			scene: _Browser_getScene(),
-			viewport: {
-				x: x,
-				y: y,
-				width: _Browser_doc.documentElement.clientWidth,
-				height: _Browser_doc.documentElement.clientHeight
+			a0: _Browser_getScene(),
+			a6: {
+				ba: x,
+				bb: y,
+				a9: _Browser_doc.documentElement.clientWidth,
+				aH: _Browser_doc.documentElement.clientHeight
 			},
-			element: {
-				x: x + rect.left,
-				y: y + rect.top,
-				width: rect.width,
-				height: rect.height
+			bj: {
+				ba: x + rect.left,
+				bb: y + rect.top,
+				a9: rect.width,
+				aH: rect.height
 			}
 		};
 	});
@@ -7824,15 +4453,15 @@ var _Bitwise_shiftRightZfBy = F2(function(offset, a)
 {
 	return a >>> offset;
 });
-var $elm$core$Basics$EQ = {$: 'EQ'};
-var $elm$core$Basics$GT = {$: 'GT'};
-var $elm$core$Basics$LT = {$: 'LT'};
+var $elm$core$Basics$EQ = 1;
+var $elm$core$Basics$GT = 2;
+var $elm$core$Basics$LT = 0;
 var $elm$core$List$cons = _List_cons;
 var $elm$core$Dict$foldr = F3(
 	function (func, acc, t) {
 		foldr:
 		while (true) {
-			if (t.$ === 'RBEmpty_elm_builtin') {
+			if (t.$ === -2) {
 				return acc;
 			} else {
 				var key = t.b;
@@ -7877,7 +4506,7 @@ var $elm$core$Dict$keys = function (dict) {
 		dict);
 };
 var $elm$core$Set$toList = function (_v0) {
-	var dict = _v0.a;
+	var dict = _v0;
 	return $elm$core$Dict$keys(dict);
 };
 var $elm$core$Elm$JsArray$foldr = _JsArray_foldr;
@@ -7887,7 +4516,7 @@ var $elm$core$Array$foldr = F3(
 		var tail = _v0.d;
 		var helper = F2(
 			function (node, acc) {
-				if (node.$ === 'SubTree') {
+				if (!node.$) {
 					var subTree = node.a;
 					return A3($elm$core$Elm$JsArray$foldr, helper, acc, subTree);
 				} else {
@@ -7905,32 +4534,32 @@ var $elm$core$Array$toList = function (array) {
 	return A3($elm$core$Array$foldr, $elm$core$List$cons, _List_Nil, array);
 };
 var $elm$core$Result$Err = function (a) {
-	return {$: 'Err', a: a};
+	return {$: 1, a: a};
 };
 var $elm$json$Json$Decode$Failure = F2(
 	function (a, b) {
-		return {$: 'Failure', a: a, b: b};
+		return {$: 3, a: a, b: b};
 	});
 var $elm$json$Json$Decode$Field = F2(
 	function (a, b) {
-		return {$: 'Field', a: a, b: b};
+		return {$: 0, a: a, b: b};
 	});
 var $elm$json$Json$Decode$Index = F2(
 	function (a, b) {
-		return {$: 'Index', a: a, b: b};
+		return {$: 1, a: a, b: b};
 	});
 var $elm$core$Result$Ok = function (a) {
-	return {$: 'Ok', a: a};
+	return {$: 0, a: a};
 };
 var $elm$json$Json$Decode$OneOf = function (a) {
-	return {$: 'OneOf', a: a};
+	return {$: 2, a: a};
 };
-var $elm$core$Basics$False = {$: 'False'};
+var $elm$core$Basics$False = 1;
 var $elm$core$Basics$add = _Basics_add;
 var $elm$core$Maybe$Just = function (a) {
-	return {$: 'Just', a: a};
+	return {$: 0, a: a};
 };
-var $elm$core$Maybe$Nothing = {$: 'Nothing'};
+var $elm$core$Maybe$Nothing = {$: 1};
 var $elm$core$String$all = _String_all;
 var $elm$core$Basics$and = _Basics_and;
 var $elm$core$Basics$append = _Utils_append;
@@ -8055,12 +4684,12 @@ var $elm$json$Json$Decode$errorToStringHelp = F2(
 		errorToStringHelp:
 		while (true) {
 			switch (error.$) {
-				case 'Field':
+				case 0:
 					var f = error.a;
 					var err = error.b;
 					var isSimple = function () {
 						var _v1 = $elm$core$String$uncons(f);
-						if (_v1.$ === 'Nothing') {
+						if (_v1.$ === 1) {
 							return false;
 						} else {
 							var _v2 = _v1.a;
@@ -8075,7 +4704,7 @@ var $elm$json$Json$Decode$errorToStringHelp = F2(
 					error = $temp$error;
 					context = $temp$context;
 					continue errorToStringHelp;
-				case 'Index':
+				case 1:
 					var i = error.a;
 					var err = error.b;
 					var indexName = '[' + ($elm$core$String$fromInt(i) + ']');
@@ -8084,7 +4713,7 @@ var $elm$json$Json$Decode$errorToStringHelp = F2(
 					error = $temp$error;
 					context = $temp$context;
 					continue errorToStringHelp;
-				case 'OneOf':
+				case 2:
 					var errors = error.a;
 					if (!errors.b) {
 						return 'Ran into a Json.Decode.oneOf with no possibilities' + function () {
@@ -8148,7 +4777,7 @@ var $elm$json$Json$Decode$errorToStringHelp = F2(
 var $elm$core$Array$branchFactor = 32;
 var $elm$core$Array$Array_elm_builtin = F4(
 	function (a, b, c, d) {
-		return {$: 'Array_elm_builtin', a: a, b: b, c: c, d: d};
+		return {$: 0, a: a, b: b, c: c, d: d};
 	});
 var $elm$core$Elm$JsArray$empty = _JsArray_empty;
 var $elm$core$Basics$ceiling = _Basics_ceiling;
@@ -8163,7 +4792,7 @@ var $elm$core$Array$shiftStep = $elm$core$Basics$ceiling(
 var $elm$core$Array$empty = A4($elm$core$Array$Array_elm_builtin, 0, $elm$core$Array$shiftStep, $elm$core$Elm$JsArray$empty, $elm$core$Elm$JsArray$empty);
 var $elm$core$Elm$JsArray$initialize = _JsArray_initialize;
 var $elm$core$Array$Leaf = function (a) {
-	return {$: 'Leaf', a: a};
+	return {$: 1, a: a};
 };
 var $elm$core$Basics$apL = F2(
 	function (f, x) {
@@ -8183,7 +4812,7 @@ var $elm$core$Basics$max = F2(
 	});
 var $elm$core$Basics$mul = _Basics_mul;
 var $elm$core$Array$SubTree = function (a) {
-	return {$: 'SubTree', a: a};
+	return {$: 0, a: a};
 };
 var $elm$core$Elm$JsArray$initializeFromList = _JsArray_initializeFromList;
 var $elm$core$Array$compressNodes = F2(
@@ -8230,25 +4859,25 @@ var $elm$core$Array$treeFromBuilder = F2(
 	});
 var $elm$core$Array$builderToArray = F2(
 	function (reverseNodeList, builder) {
-		if (!builder.nodeListSize) {
+		if (!builder.e) {
 			return A4(
 				$elm$core$Array$Array_elm_builtin,
-				$elm$core$Elm$JsArray$length(builder.tail),
+				$elm$core$Elm$JsArray$length(builder.g),
 				$elm$core$Array$shiftStep,
 				$elm$core$Elm$JsArray$empty,
-				builder.tail);
+				builder.g);
 		} else {
-			var treeLen = builder.nodeListSize * $elm$core$Array$branchFactor;
+			var treeLen = builder.e * $elm$core$Array$branchFactor;
 			var depth = $elm$core$Basics$floor(
 				A2($elm$core$Basics$logBase, $elm$core$Array$branchFactor, treeLen - 1));
-			var correctNodeList = reverseNodeList ? $elm$core$List$reverse(builder.nodeList) : builder.nodeList;
-			var tree = A2($elm$core$Array$treeFromBuilder, correctNodeList, builder.nodeListSize);
+			var correctNodeList = reverseNodeList ? $elm$core$List$reverse(builder.h) : builder.h;
+			var tree = A2($elm$core$Array$treeFromBuilder, correctNodeList, builder.e);
 			return A4(
 				$elm$core$Array$Array_elm_builtin,
-				$elm$core$Elm$JsArray$length(builder.tail) + treeLen,
+				$elm$core$Elm$JsArray$length(builder.g) + treeLen,
 				A2($elm$core$Basics$max, 5, depth * $elm$core$Array$shiftStep),
 				tree,
-				builder.tail);
+				builder.g);
 		}
 	});
 var $elm$core$Basics$idiv = _Basics_idiv;
@@ -8261,7 +4890,7 @@ var $elm$core$Array$initializeHelp = F5(
 				return A2(
 					$elm$core$Array$builderToArray,
 					false,
-					{nodeList: nodeList, nodeListSize: (len / $elm$core$Array$branchFactor) | 0, tail: tail});
+					{h: nodeList, e: (len / $elm$core$Array$branchFactor) | 0, g: tail});
 			} else {
 				var leaf = $elm$core$Array$Leaf(
 					A3($elm$core$Elm$JsArray$initialize, $elm$core$Array$branchFactor, fromIndex, fn));
@@ -8291,9 +4920,9 @@ var $elm$core$Array$initialize = F2(
 			return A5($elm$core$Array$initializeHelp, fn, initialFromIndex, len, _List_Nil, tail);
 		}
 	});
-var $elm$core$Basics$True = {$: 'True'};
+var $elm$core$Basics$True = 0;
 var $elm$core$Result$isOk = function (result) {
-	if (result.$ === 'Ok') {
+	if (!result.$) {
 		return true;
 	} else {
 		return false;
@@ -8304,33 +4933,31 @@ var $elm$json$Json$Decode$map2 = _Json_map2;
 var $elm$json$Json$Decode$succeed = _Json_succeed;
 var $elm$virtual_dom$VirtualDom$toHandlerInt = function (handler) {
 	switch (handler.$) {
-		case 'Normal':
+		case 0:
 			return 0;
-		case 'MayStopPropagation':
+		case 1:
 			return 1;
-		case 'MayPreventDefault':
+		case 2:
 			return 2;
 		default:
 			return 3;
 	}
 };
 var $elm$browser$Browser$External = function (a) {
-	return {$: 'External', a: a};
+	return {$: 1, a: a};
 };
 var $elm$browser$Browser$Internal = function (a) {
-	return {$: 'Internal', a: a};
+	return {$: 0, a: a};
 };
 var $elm$core$Basics$identity = function (x) {
 	return x;
 };
-var $elm$browser$Browser$Dom$NotFound = function (a) {
-	return {$: 'NotFound', a: a};
-};
-var $elm$url$Url$Http = {$: 'Http'};
-var $elm$url$Url$Https = {$: 'Https'};
+var $elm$browser$Browser$Dom$NotFound = $elm$core$Basics$identity;
+var $elm$url$Url$Http = 0;
+var $elm$url$Url$Https = 1;
 var $elm$url$Url$Url = F6(
 	function (protocol, host, port_, path, query, fragment) {
-		return {fragment: fragment, host: host, path: path, port_: port_, protocol: protocol, query: query};
+		return {aG: fragment, aJ: host, aQ: path, aS: port_, aW: protocol, aX: query};
 	});
 var $elm$core$String$contains = _String_contains;
 var $elm$core$String$length = _String_length;
@@ -8366,7 +4993,7 @@ var $elm$url$Url$chompBeforePath = F5(
 					var i = _v0.a;
 					var _v1 = $elm$core$String$toInt(
 						A2($elm$core$String$dropLeft, i + 1, str));
-					if (_v1.$ === 'Nothing') {
+					if (_v1.$ === 1) {
 						return $elm$core$Maybe$Nothing;
 					} else {
 						var port_ = _v1;
@@ -8449,26 +5076,24 @@ var $elm$core$String$startsWith = _String_startsWith;
 var $elm$url$Url$fromString = function (str) {
 	return A2($elm$core$String$startsWith, 'http://', str) ? A2(
 		$elm$url$Url$chompAfterProtocol,
-		$elm$url$Url$Http,
+		0,
 		A2($elm$core$String$dropLeft, 7, str)) : (A2($elm$core$String$startsWith, 'https://', str) ? A2(
 		$elm$url$Url$chompAfterProtocol,
-		$elm$url$Url$Https,
+		1,
 		A2($elm$core$String$dropLeft, 8, str)) : $elm$core$Maybe$Nothing);
 };
 var $elm$core$Basics$never = function (_v0) {
 	never:
 	while (true) {
-		var nvr = _v0.a;
+		var nvr = _v0;
 		var $temp$_v0 = nvr;
 		_v0 = $temp$_v0;
 		continue never;
 	}
 };
-var $elm$core$Task$Perform = function (a) {
-	return {$: 'Perform', a: a};
-};
+var $elm$core$Task$Perform = $elm$core$Basics$identity;
 var $elm$core$Task$succeed = _Scheduler_succeed;
-var $elm$core$Task$init = $elm$core$Task$succeed(_Utils_Tuple0);
+var $elm$core$Task$init = $elm$core$Task$succeed(0);
 var $elm$core$List$foldrHelper = F4(
 	function (fn, acc, ctr, ls) {
 		if (!ls.b) {
@@ -8574,7 +5199,7 @@ var $elm$core$Task$sequence = function (tasks) {
 var $elm$core$Platform$sendToApp = _Platform_sendToApp;
 var $elm$core$Task$spawnCmd = F2(
 	function (router, _v0) {
-		var task = _v0.a;
+		var task = _v0;
 		return _Scheduler_spawn(
 			A2(
 				$elm$core$Task$andThen,
@@ -8586,7 +5211,7 @@ var $elm$core$Task$onEffects = F3(
 		return A2(
 			$elm$core$Task$map,
 			function (_v0) {
-				return _Utils_Tuple0;
+				return 0;
 			},
 			$elm$core$Task$sequence(
 				A2(
@@ -8596,31 +5221,27 @@ var $elm$core$Task$onEffects = F3(
 	});
 var $elm$core$Task$onSelfMsg = F3(
 	function (_v0, _v1, _v2) {
-		return $elm$core$Task$succeed(_Utils_Tuple0);
+		return $elm$core$Task$succeed(0);
 	});
 var $elm$core$Task$cmdMap = F2(
 	function (tagger, _v0) {
-		var task = _v0.a;
-		return $elm$core$Task$Perform(
-			A2($elm$core$Task$map, tagger, task));
+		var task = _v0;
+		return A2($elm$core$Task$map, tagger, task);
 	});
 _Platform_effectManagers['Task'] = _Platform_createManager($elm$core$Task$init, $elm$core$Task$onEffects, $elm$core$Task$onSelfMsg, $elm$core$Task$cmdMap);
 var $elm$core$Task$command = _Platform_leaf('Task');
 var $elm$core$Task$perform = F2(
 	function (toMessage, task) {
 		return $elm$core$Task$command(
-			$elm$core$Task$Perform(
-				A2($elm$core$Task$map, toMessage, task)));
+			A2($elm$core$Task$map, toMessage, task));
 	});
 var $elm$browser$Browser$document = _Browser_document;
 var $author$project$Example$CurrentDateReceived = function (a) {
-	return {$: 'CurrentDateReceived', a: a};
+	return {$: 0, a: a};
 };
-var $elm$time$Time$Feb = {$: 'Feb'};
-var $author$project$Calendar$Month = {$: 'Month'};
-var $justinmimbs$date$Date$RD = function (a) {
-	return {$: 'RD', a: a};
-};
+var $elm$time$Time$Feb = 1;
+var $author$project$Calendar$Month = 2;
+var $justinmimbs$date$Date$RD = $elm$core$Basics$identity;
 var $elm$core$Basics$clamp = F3(
 	function (low, high, number) {
 		return (_Utils_cmp(number, low) < 0) ? low : ((_Utils_cmp(number, high) > 0) ? high : number);
@@ -8633,28 +5254,28 @@ var $justinmimbs$date$Date$isLeapYear = function (y) {
 var $justinmimbs$date$Date$daysBeforeMonth = F2(
 	function (y, m) {
 		var leapDays = $justinmimbs$date$Date$isLeapYear(y) ? 1 : 0;
-		switch (m.$) {
-			case 'Jan':
+		switch (m) {
+			case 0:
 				return 0;
-			case 'Feb':
+			case 1:
 				return 31;
-			case 'Mar':
+			case 2:
 				return 59 + leapDays;
-			case 'Apr':
+			case 3:
 				return 90 + leapDays;
-			case 'May':
+			case 4:
 				return 120 + leapDays;
-			case 'Jun':
+			case 5:
 				return 151 + leapDays;
-			case 'Jul':
+			case 6:
 				return 181 + leapDays;
-			case 'Aug':
+			case 7:
 				return 212 + leapDays;
-			case 'Sep':
+			case 8:
 				return 243 + leapDays;
-			case 'Oct':
+			case 9:
 				return 273 + leapDays;
-			case 'Nov':
+			case 10:
 				return 304 + leapDays;
 			default:
 				return 334 + leapDays;
@@ -8671,28 +5292,28 @@ var $justinmimbs$date$Date$daysBeforeYear = function (y1) {
 };
 var $justinmimbs$date$Date$daysInMonth = F2(
 	function (y, m) {
-		switch (m.$) {
-			case 'Jan':
+		switch (m) {
+			case 0:
 				return 31;
-			case 'Feb':
+			case 1:
 				return $justinmimbs$date$Date$isLeapYear(y) ? 29 : 28;
-			case 'Mar':
+			case 2:
 				return 31;
-			case 'Apr':
+			case 3:
 				return 30;
-			case 'May':
+			case 4:
 				return 31;
-			case 'Jun':
+			case 5:
 				return 30;
-			case 'Jul':
+			case 6:
 				return 31;
-			case 'Aug':
+			case 7:
 				return 31;
-			case 'Sep':
+			case 8:
 				return 30;
-			case 'Oct':
+			case 9:
 				return 31;
-			case 'Nov':
+			case 10:
 				return 30;
 			default:
 				return 31;
@@ -8700,19 +5321,18 @@ var $justinmimbs$date$Date$daysInMonth = F2(
 	});
 var $justinmimbs$date$Date$fromCalendarDate = F3(
 	function (y, m, d) {
-		return $justinmimbs$date$Date$RD(
-			($justinmimbs$date$Date$daysBeforeYear(y) + A2($justinmimbs$date$Date$daysBeforeMonth, y, m)) + A3(
-				$elm$core$Basics$clamp,
-				1,
-				A2($justinmimbs$date$Date$daysInMonth, y, m),
-				d));
+		return ($justinmimbs$date$Date$daysBeforeYear(y) + A2($justinmimbs$date$Date$daysBeforeMonth, y, m)) + A3(
+			$elm$core$Basics$clamp,
+			1,
+			A2($justinmimbs$date$Date$daysInMonth, y, m),
+			d);
 	});
 var $elm$time$Time$flooredDiv = F2(
 	function (numerator, denominator) {
 		return $elm$core$Basics$floor(numerator / denominator);
 	});
 var $elm$time$Time$posixToMillis = function (_v0) {
-	var millis = _v0.a;
+	var millis = _v0;
 	return millis;
 };
 var $elm$time$Time$toAdjustedMinutesHelp = F3(
@@ -8724,8 +5344,8 @@ var $elm$time$Time$toAdjustedMinutesHelp = F3(
 			} else {
 				var era = eras.a;
 				var olderEras = eras.b;
-				if (_Utils_cmp(era.start, posixMinutes) < 0) {
-					return posixMinutes + era.offset;
+				if (_Utils_cmp(era.aq, posixMinutes) < 0) {
+					return posixMinutes + era.b;
 				} else {
 					var $temp$defaultOffset = defaultOffset,
 						$temp$posixMinutes = posixMinutes,
@@ -8765,62 +5385,62 @@ var $elm$time$Time$toCivil = function (minutes) {
 	var month = mp + ((mp < 10) ? 3 : (-9));
 	var year = yearOfEra + (era * 400);
 	return {
-		day: (dayOfYear - ((((153 * mp) + 2) / 5) | 0)) + 1,
-		month: month,
-		year: year + ((month <= 2) ? 1 : 0)
+		aB: (dayOfYear - ((((153 * mp) + 2) / 5) | 0)) + 1,
+		aO: month,
+		bc: year + ((month <= 2) ? 1 : 0)
 	};
 };
 var $elm$time$Time$toDay = F2(
 	function (zone, time) {
 		return $elm$time$Time$toCivil(
-			A2($elm$time$Time$toAdjustedMinutes, zone, time)).day;
+			A2($elm$time$Time$toAdjustedMinutes, zone, time)).aB;
 	});
-var $elm$time$Time$Apr = {$: 'Apr'};
-var $elm$time$Time$Aug = {$: 'Aug'};
-var $elm$time$Time$Dec = {$: 'Dec'};
-var $elm$time$Time$Jan = {$: 'Jan'};
-var $elm$time$Time$Jul = {$: 'Jul'};
-var $elm$time$Time$Jun = {$: 'Jun'};
-var $elm$time$Time$Mar = {$: 'Mar'};
-var $elm$time$Time$May = {$: 'May'};
-var $elm$time$Time$Nov = {$: 'Nov'};
-var $elm$time$Time$Oct = {$: 'Oct'};
-var $elm$time$Time$Sep = {$: 'Sep'};
+var $elm$time$Time$Apr = 3;
+var $elm$time$Time$Aug = 7;
+var $elm$time$Time$Dec = 11;
+var $elm$time$Time$Jan = 0;
+var $elm$time$Time$Jul = 6;
+var $elm$time$Time$Jun = 5;
+var $elm$time$Time$Mar = 2;
+var $elm$time$Time$May = 4;
+var $elm$time$Time$Nov = 10;
+var $elm$time$Time$Oct = 9;
+var $elm$time$Time$Sep = 8;
 var $elm$time$Time$toMonth = F2(
 	function (zone, time) {
 		var _v0 = $elm$time$Time$toCivil(
-			A2($elm$time$Time$toAdjustedMinutes, zone, time)).month;
+			A2($elm$time$Time$toAdjustedMinutes, zone, time)).aO;
 		switch (_v0) {
 			case 1:
-				return $elm$time$Time$Jan;
+				return 0;
 			case 2:
-				return $elm$time$Time$Feb;
+				return 1;
 			case 3:
-				return $elm$time$Time$Mar;
+				return 2;
 			case 4:
-				return $elm$time$Time$Apr;
+				return 3;
 			case 5:
-				return $elm$time$Time$May;
+				return 4;
 			case 6:
-				return $elm$time$Time$Jun;
+				return 5;
 			case 7:
-				return $elm$time$Time$Jul;
+				return 6;
 			case 8:
-				return $elm$time$Time$Aug;
+				return 7;
 			case 9:
-				return $elm$time$Time$Sep;
+				return 8;
 			case 10:
-				return $elm$time$Time$Oct;
+				return 9;
 			case 11:
-				return $elm$time$Time$Nov;
+				return 10;
 			default:
-				return $elm$time$Time$Dec;
+				return 11;
 		}
 	});
 var $elm$time$Time$toYear = F2(
 	function (zone, time) {
 		return $elm$time$Time$toCivil(
-			A2($elm$time$Time$toAdjustedMinutes, zone, time)).year;
+			A2($elm$time$Time$toAdjustedMinutes, zone, time)).bc;
 	});
 var $justinmimbs$date$Date$fromPosix = F2(
 	function (zone, posix) {
@@ -8831,33 +5451,31 @@ var $justinmimbs$date$Date$fromPosix = F2(
 			A2($elm$time$Time$toDay, zone, posix));
 	});
 var $elm$time$Time$Name = function (a) {
-	return {$: 'Name', a: a};
+	return {$: 0, a: a};
 };
 var $elm$time$Time$Offset = function (a) {
-	return {$: 'Offset', a: a};
+	return {$: 1, a: a};
 };
 var $elm$time$Time$Zone = F2(
 	function (a, b) {
-		return {$: 'Zone', a: a, b: b};
+		return {$: 0, a: a, b: b};
 	});
 var $elm$time$Time$customZone = $elm$time$Time$Zone;
-var $elm$time$Time$here = _Time_here(_Utils_Tuple0);
-var $elm$time$Time$Posix = function (a) {
-	return {$: 'Posix', a: a};
-};
-var $elm$time$Time$millisToPosix = $elm$time$Time$Posix;
+var $elm$time$Time$here = _Time_here(0);
+var $elm$time$Time$Posix = $elm$core$Basics$identity;
+var $elm$time$Time$millisToPosix = $elm$core$Basics$identity;
 var $elm$time$Time$now = _Time_now($elm$time$Time$millisToPosix);
 var $justinmimbs$date$Date$today = A3($elm$core$Task$map2, $justinmimbs$date$Date$fromPosix, $elm$time$Time$here, $elm$time$Time$now);
 var $author$project$Example$init = function (_v0) {
 	return _Utils_Tuple2(
 		{
-			customDayOfMonth: false,
-			customMonthHeader: false,
-			customWeekdayHeader: false,
-			period: A3($justinmimbs$date$Date$fromCalendarDate, 2024, $elm$time$Time$Feb, 22),
-			scope: $author$project$Calendar$Month,
-			selectedDate: A3($justinmimbs$date$Date$fromCalendarDate, 2024, $elm$time$Time$Feb, 22),
-			today: A3($justinmimbs$date$Date$fromCalendarDate, 2024, $elm$time$Time$Feb, 22)
+			y: false,
+			C: false,
+			D: false,
+			t: A3($justinmimbs$date$Date$fromCalendarDate, 2024, 1, 22),
+			Z: 2,
+			u: A3($justinmimbs$date$Date$fromCalendarDate, 2024, 1, 22),
+			N: A3($justinmimbs$date$Date$fromCalendarDate, 2024, 1, 22)
 		},
 		A2($elm$core$Task$perform, $author$project$Example$CurrentDateReceived, $justinmimbs$date$Date$today));
 };
@@ -8866,37 +5484,37 @@ var $elm$core$Platform$Sub$none = $elm$core$Platform$Sub$batch(_List_Nil);
 var $author$project$Example$subscriptions = function (_v0) {
 	return $elm$core$Platform$Sub$none;
 };
-var $justinmimbs$date$Date$Days = {$: 'Days'};
-var $justinmimbs$date$Date$Months = {$: 'Months'};
-var $justinmimbs$date$Date$Weeks = {$: 'Weeks'};
-var $justinmimbs$date$Date$Years = {$: 'Years'};
+var $justinmimbs$date$Date$Days = 3;
+var $justinmimbs$date$Date$Months = 1;
+var $justinmimbs$date$Date$Weeks = 2;
+var $justinmimbs$date$Date$Years = 0;
 var $elm$core$Basics$min = F2(
 	function (x, y) {
 		return (_Utils_cmp(x, y) < 0) ? x : y;
 	});
 var $justinmimbs$date$Date$monthToNumber = function (m) {
-	switch (m.$) {
-		case 'Jan':
+	switch (m) {
+		case 0:
 			return 1;
-		case 'Feb':
+		case 1:
 			return 2;
-		case 'Mar':
+		case 2:
 			return 3;
-		case 'Apr':
+		case 3:
 			return 4;
-		case 'May':
+		case 4:
 			return 5;
-		case 'Jun':
+		case 5:
 			return 6;
-		case 'Jul':
+		case 6:
 			return 7;
-		case 'Aug':
+		case 7:
 			return 8;
-		case 'Sep':
+		case 8:
 			return 9;
-		case 'Oct':
+		case 9:
 			return 10;
-		case 'Nov':
+		case 10:
 			return 11;
 		default:
 			return 12;
@@ -8906,29 +5524,29 @@ var $justinmimbs$date$Date$numberToMonth = function (mn) {
 	var _v0 = A2($elm$core$Basics$max, 1, mn);
 	switch (_v0) {
 		case 1:
-			return $elm$time$Time$Jan;
+			return 0;
 		case 2:
-			return $elm$time$Time$Feb;
+			return 1;
 		case 3:
-			return $elm$time$Time$Mar;
+			return 2;
 		case 4:
-			return $elm$time$Time$Apr;
+			return 3;
 		case 5:
-			return $elm$time$Time$May;
+			return 4;
 		case 6:
-			return $elm$time$Time$Jun;
+			return 5;
 		case 7:
-			return $elm$time$Time$Jul;
+			return 6;
 		case 8:
-			return $elm$time$Time$Aug;
+			return 7;
 		case 9:
-			return $elm$time$Time$Sep;
+			return 8;
 		case 10:
-			return $elm$time$Time$Oct;
+			return 9;
 		case 11:
-			return $elm$time$Time$Nov;
+			return 10;
 		default:
-			return $elm$time$Time$Dec;
+			return 11;
 	}
 };
 var $justinmimbs$date$Date$toCalendarDateHelp = F3(
@@ -8946,7 +5564,7 @@ var $justinmimbs$date$Date$toCalendarDateHelp = F3(
 				d = $temp$d;
 				continue toCalendarDateHelp;
 			} else {
-				return {day: d, month: m, year: y};
+				return {aB: d, aO: m, bc: y};
 			}
 		}
 	});
@@ -8957,7 +5575,7 @@ var $justinmimbs$date$Date$divWithRemainder = F2(
 			A2($elm$core$Basics$modBy, b, a));
 	});
 var $justinmimbs$date$Date$year = function (_v0) {
-	var rd = _v0.a;
+	var rd = _v0;
 	var _v1 = A2($justinmimbs$date$Date$divWithRemainder, rd, 146097);
 	var n400 = _v1.a;
 	var r400 = _v1.b;
@@ -8974,46 +5592,38 @@ var $justinmimbs$date$Date$year = function (_v0) {
 	return ((((n400 * 400) + (n100 * 100)) + (n4 * 4)) + n1) + n;
 };
 var $justinmimbs$date$Date$toOrdinalDate = function (_v0) {
-	var rd = _v0.a;
-	var y = $justinmimbs$date$Date$year(
-		$justinmimbs$date$Date$RD(rd));
+	var rd = _v0;
+	var y = $justinmimbs$date$Date$year(rd);
 	return {
-		ordinalDay: rd - $justinmimbs$date$Date$daysBeforeYear(y),
-		year: y
+		an: rd - $justinmimbs$date$Date$daysBeforeYear(y),
+		bc: y
 	};
 };
 var $justinmimbs$date$Date$toCalendarDate = function (_v0) {
-	var rd = _v0.a;
-	var date = $justinmimbs$date$Date$toOrdinalDate(
-		$justinmimbs$date$Date$RD(rd));
-	return A3($justinmimbs$date$Date$toCalendarDateHelp, date.year, $elm$time$Time$Jan, date.ordinalDay);
+	var rd = _v0;
+	var date = $justinmimbs$date$Date$toOrdinalDate(rd);
+	return A3($justinmimbs$date$Date$toCalendarDateHelp, date.bc, 0, date.an);
 };
 var $justinmimbs$date$Date$add = F3(
 	function (unit, n, _v0) {
-		var rd = _v0.a;
-		switch (unit.$) {
-			case 'Years':
-				return A3(
-					$justinmimbs$date$Date$add,
-					$justinmimbs$date$Date$Months,
-					12 * n,
-					$justinmimbs$date$Date$RD(rd));
-			case 'Months':
-				var date = $justinmimbs$date$Date$toCalendarDate(
-					$justinmimbs$date$Date$RD(rd));
-				var wholeMonths = ((12 * (date.year - 1)) + ($justinmimbs$date$Date$monthToNumber(date.month) - 1)) + n;
+		var rd = _v0;
+		switch (unit) {
+			case 0:
+				return A3($justinmimbs$date$Date$add, 1, 12 * n, rd);
+			case 1:
+				var date = $justinmimbs$date$Date$toCalendarDate(rd);
+				var wholeMonths = ((12 * (date.bc - 1)) + ($justinmimbs$date$Date$monthToNumber(date.aO) - 1)) + n;
 				var m = $justinmimbs$date$Date$numberToMonth(
 					A2($elm$core$Basics$modBy, 12, wholeMonths) + 1);
 				var y = A2($justinmimbs$date$Date$floorDiv, wholeMonths, 12) + 1;
-				return $justinmimbs$date$Date$RD(
-					($justinmimbs$date$Date$daysBeforeYear(y) + A2($justinmimbs$date$Date$daysBeforeMonth, y, m)) + A2(
-						$elm$core$Basics$min,
-						date.day,
-						A2($justinmimbs$date$Date$daysInMonth, y, m)));
-			case 'Weeks':
-				return $justinmimbs$date$Date$RD(rd + (7 * n));
+				return ($justinmimbs$date$Date$daysBeforeYear(y) + A2($justinmimbs$date$Date$daysBeforeMonth, y, m)) + A2(
+					$elm$core$Basics$min,
+					date.aB,
+					A2($justinmimbs$date$Date$daysInMonth, y, m));
+			case 2:
+				return rd + (7 * n);
 			default:
-				return $justinmimbs$date$Date$RD(rd + n);
+				return rd + n;
 		}
 	});
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
@@ -9022,106 +5632,106 @@ var $elm$core$Basics$not = _Basics_not;
 var $author$project$Example$update = F2(
 	function (msg, model) {
 		switch (msg.$) {
-			case 'CurrentDateReceived':
+			case 0:
 				var today = msg.a;
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{period: today, selectedDate: today, today: today}),
+						{t: today, u: today, N: today}),
 					$elm$core$Platform$Cmd$none);
-			case 'UserClickedDate':
+			case 1:
 				var date = msg.a;
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{period: date, selectedDate: date}),
+						{t: date, u: date}),
 					$elm$core$Platform$Cmd$none);
-			case 'UserClickedPreviousPeriod':
+			case 5:
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
 						{
-							period: function () {
-								var _v1 = model.scope;
-								switch (_v1.$) {
-									case 'Year':
-										return A3($justinmimbs$date$Date$add, $justinmimbs$date$Date$Years, -1, model.period);
-									case 'Month':
-										return A3($justinmimbs$date$Date$add, $justinmimbs$date$Date$Months, -1, model.period);
-									case 'Week':
-										return A3($justinmimbs$date$Date$add, $justinmimbs$date$Date$Weeks, -1, model.period);
+							t: function () {
+								var _v1 = model.Z;
+								switch (_v1) {
+									case 3:
+										return A3($justinmimbs$date$Date$add, 0, -1, model.t);
+									case 2:
+										return A3($justinmimbs$date$Date$add, 1, -1, model.t);
+									case 1:
+										return A3($justinmimbs$date$Date$add, 2, -1, model.t);
 									default:
-										return A3($justinmimbs$date$Date$add, $justinmimbs$date$Date$Days, -1, model.period);
+										return A3($justinmimbs$date$Date$add, 3, -1, model.t);
 								}
 							}()
 						}),
 					$elm$core$Platform$Cmd$none);
-			case 'UserClickedNextPeriod':
+			case 6:
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
 						{
-							period: function () {
-								var _v2 = model.scope;
-								switch (_v2.$) {
-									case 'Year':
-										return A3($justinmimbs$date$Date$add, $justinmimbs$date$Date$Years, 1, model.period);
-									case 'Month':
-										return A3($justinmimbs$date$Date$add, $justinmimbs$date$Date$Months, 1, model.period);
-									case 'Week':
-										return A3($justinmimbs$date$Date$add, $justinmimbs$date$Date$Weeks, 1, model.period);
+							t: function () {
+								var _v2 = model.Z;
+								switch (_v2) {
+									case 3:
+										return A3($justinmimbs$date$Date$add, 0, 1, model.t);
+									case 2:
+										return A3($justinmimbs$date$Date$add, 1, 1, model.t);
+									case 1:
+										return A3($justinmimbs$date$Date$add, 2, 1, model.t);
 									default:
-										return A3($justinmimbs$date$Date$add, $justinmimbs$date$Date$Days, 1, model.period);
+										return A3($justinmimbs$date$Date$add, 3, 1, model.t);
 								}
 							}()
 						}),
 					$elm$core$Platform$Cmd$none);
-			case 'UserClickedTodayPeriod':
+			case 7:
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{period: model.today, selectedDate: model.today}),
+						{t: model.N, u: model.N}),
 					$elm$core$Platform$Cmd$none);
-			case 'UserClickedScope':
+			case 8:
 				var scope = msg.a;
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{scope: scope}),
+						{Z: scope}),
 					$elm$core$Platform$Cmd$none);
-			case 'UserClickedCustomDayOfMonth':
+			case 2:
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{customDayOfMonth: !model.customDayOfMonth}),
+						{y: !model.y}),
 					$elm$core$Platform$Cmd$none);
-			case 'UserClickedCustomWeekdayHeader':
+			case 3:
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{customWeekdayHeader: !model.customWeekdayHeader}),
+						{D: !model.D}),
 					$elm$core$Platform$Cmd$none);
 			default:
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{customMonthHeader: !model.customMonthHeader}),
+						{C: !model.C}),
 					$elm$core$Platform$Cmd$none);
 		}
 	});
-var $author$project$Calendar$Day = {$: 'Day'};
-var $elm$time$Time$Sun = {$: 'Sun'};
-var $author$project$Example$UserClickedCustomDayOfMonth = {$: 'UserClickedCustomDayOfMonth'};
-var $author$project$Example$UserClickedCustomMonthHeader = {$: 'UserClickedCustomMonthHeader'};
-var $author$project$Example$UserClickedCustomWeekdayHeader = {$: 'UserClickedCustomWeekdayHeader'};
-var $author$project$Example$UserClickedNextPeriod = {$: 'UserClickedNextPeriod'};
-var $author$project$Example$UserClickedPreviousPeriod = {$: 'UserClickedPreviousPeriod'};
+var $author$project$Calendar$Day = 0;
+var $elm$time$Time$Sun = 6;
+var $author$project$Example$UserClickedCustomDayOfMonth = {$: 2};
+var $author$project$Example$UserClickedCustomMonthHeader = {$: 4};
+var $author$project$Example$UserClickedCustomWeekdayHeader = {$: 3};
+var $author$project$Example$UserClickedNextPeriod = {$: 6};
+var $author$project$Example$UserClickedPreviousPeriod = {$: 5};
 var $author$project$Example$UserClickedScope = function (a) {
-	return {$: 'UserClickedScope', a: a};
+	return {$: 8, a: a};
 };
-var $author$project$Example$UserClickedTodayPeriod = {$: 'UserClickedTodayPeriod'};
-var $author$project$Calendar$Week = {$: 'Week'};
-var $author$project$Calendar$Year = {$: 'Year'};
+var $author$project$Example$UserClickedTodayPeriod = {$: 7};
+var $author$project$Calendar$Week = 1;
+var $author$project$Calendar$Year = 3;
 var $author$project$Example$applyIf = F3(
 	function (condition, f, x) {
 		return condition ? f(x) : x;
@@ -9136,7 +5746,7 @@ var $justinmimbs$date$Date$day = A2(
 	$elm$core$Basics$composeR,
 	$justinmimbs$date$Date$toCalendarDate,
 	function ($) {
-		return $.day;
+		return $.aB;
 	});
 var $elm$html$Html$div = _VirtualDom_node('div');
 var $elm$html$Html$h1 = _VirtualDom_node('h1');
@@ -9144,87 +5754,84 @@ var $justinmimbs$date$Date$month = A2(
 	$elm$core$Basics$composeR,
 	$justinmimbs$date$Date$toCalendarDate,
 	function ($) {
-		return $.month;
+		return $.aO;
 	});
 var $author$project$Example$monthToLabel = function (month) {
-	switch (month.$) {
-		case 'Jan':
+	switch (month) {
+		case 0:
 			return 'January';
-		case 'Feb':
+		case 1:
 			return 'February';
-		case 'Mar':
+		case 2:
 			return 'March';
-		case 'Apr':
+		case 3:
 			return 'April';
-		case 'May':
+		case 4:
 			return 'May';
-		case 'Jun':
+		case 5:
 			return 'June';
-		case 'Jul':
+		case 6:
 			return 'July';
-		case 'Aug':
+		case 7:
 			return 'August';
-		case 'Sep':
+		case 8:
 			return 'September';
-		case 'Oct':
+		case 9:
 			return 'October';
-		case 'Nov':
+		case 10:
 			return 'November';
 		default:
 			return 'December';
 	}
 };
 var $author$project$Example$monthToShortLabel = function (month) {
-	switch (month.$) {
-		case 'Jan':
+	switch (month) {
+		case 0:
 			return 'Jan';
-		case 'Feb':
+		case 1:
 			return 'Feb';
-		case 'Mar':
+		case 2:
 			return 'Mar';
-		case 'Apr':
+		case 3:
 			return 'Apr';
-		case 'May':
+		case 4:
 			return 'May';
-		case 'Jun':
+		case 5:
 			return 'Jun';
-		case 'Jul':
+		case 6:
 			return 'Jul';
-		case 'Aug':
+		case 7:
 			return 'Aug';
-		case 'Sep':
+		case 8:
 			return 'Sep';
-		case 'Oct':
+		case 9:
 			return 'Oct';
-		case 'Nov':
+		case 10:
 			return 'Nov';
 		default:
 			return 'Dec';
 	}
 };
-var $author$project$Calendar$Config = function (a) {
-	return {$: 'Config', a: a};
-};
-var $elm$time$Time$Mon = {$: 'Mon'};
+var $author$project$Calendar$Config = $elm$core$Basics$identity;
+var $elm$time$Time$Mon = 0;
 var $author$project$Calendar$new = function (options) {
-	return $author$project$Calendar$Config(
-		{period: options.period, scope: options.scope, use24HourTime: false, viewDayHeader: $elm$core$Maybe$Nothing, viewDayOfMonth: $elm$core$Maybe$Nothing, viewDayOfMonthOfYear: $elm$core$Maybe$Nothing, viewDayOfWeekHeader: $elm$core$Maybe$Nothing, viewMonthHeader: $elm$core$Maybe$Nothing, viewMultiDayEvents: $elm$core$Maybe$Nothing, viewWeekdayHeader: $elm$core$Maybe$Nothing, weekStartsOn: $elm$time$Time$Mon});
+	return {t: options.t, Z: options.Z, W: false, aa: $elm$core$Maybe$Nothing, ab: $elm$core$Maybe$Nothing, ac: $elm$core$Maybe$Nothing, ad: $elm$core$Maybe$Nothing, ae: $elm$core$Maybe$Nothing, af: $elm$core$Maybe$Nothing, ag: $elm$core$Maybe$Nothing, w: 0};
 };
 var $elm$virtual_dom$VirtualDom$style = _VirtualDom_style;
 var $elm$html$Html$Attributes$style = $elm$virtual_dom$VirtualDom$style;
 var $elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
 var $elm$html$Html$text = $elm$virtual_dom$VirtualDom$text;
 var $author$project$Calendar$allMonths = _List_fromArray(
-	[$elm$time$Time$Jan, $elm$time$Time$Feb, $elm$time$Time$Mar, $elm$time$Time$Apr, $elm$time$Time$May, $elm$time$Time$Jun, $elm$time$Time$Jul, $elm$time$Time$Aug, $elm$time$Time$Sep, $elm$time$Time$Oct, $elm$time$Time$Nov, $elm$time$Time$Dec]);
-var $justinmimbs$date$Date$Day = {$: 'Day'};
-var $justinmimbs$date$Date$Month = {$: 'Month'};
-var $elm$time$Time$Fri = {$: 'Fri'};
-var $elm$time$Time$Sat = {$: 'Sat'};
-var $elm$time$Time$Thu = {$: 'Thu'};
-var $elm$time$Time$Tue = {$: 'Tue'};
-var $elm$time$Time$Wed = {$: 'Wed'};
+	[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+var $justinmimbs$date$Date$Day = 11;
+var $justinmimbs$date$Date$Month = 2;
+var $elm$time$Time$Fri = 4;
+var $elm$time$Time$Sat = 5;
+var $elm$time$Time$Thu = 3;
+var $elm$time$Time$Tue = 1;
+var $elm$time$Time$Wed = 2;
 var $justinmimbs$date$Date$weekdayNumber = function (_v0) {
-	var rd = _v0.a;
+	var rd = _v0;
 	var _v1 = A2($elm$core$Basics$modBy, 7, rd);
 	if (!_v1) {
 		return 7;
@@ -9234,18 +5841,18 @@ var $justinmimbs$date$Date$weekdayNumber = function (_v0) {
 	}
 };
 var $justinmimbs$date$Date$weekdayToNumber = function (wd) {
-	switch (wd.$) {
-		case 'Mon':
+	switch (wd) {
+		case 0:
 			return 1;
-		case 'Tue':
+		case 1:
 			return 2;
-		case 'Wed':
+		case 2:
 			return 3;
-		case 'Thu':
+		case 3:
 			return 4;
-		case 'Fri':
+		case 4:
 			return 5;
-		case 'Sat':
+		case 5:
 			return 6;
 		default:
 			return 7;
@@ -9260,12 +5867,10 @@ var $justinmimbs$date$Date$daysSincePreviousWeekday = F2(
 	});
 var $justinmimbs$date$Date$firstOfMonth = F2(
 	function (y, m) {
-		return $justinmimbs$date$Date$RD(
-			($justinmimbs$date$Date$daysBeforeYear(y) + A2($justinmimbs$date$Date$daysBeforeMonth, y, m)) + 1);
+		return ($justinmimbs$date$Date$daysBeforeYear(y) + A2($justinmimbs$date$Date$daysBeforeMonth, y, m)) + 1;
 	});
 var $justinmimbs$date$Date$firstOfYear = function (y) {
-	return $justinmimbs$date$Date$RD(
-		$justinmimbs$date$Date$daysBeforeYear(y) + 1);
+	return $justinmimbs$date$Date$daysBeforeYear(y) + 1;
 };
 var $justinmimbs$date$Date$monthToQuarter = function (m) {
 	return (($justinmimbs$date$Date$monthToNumber(m) + 2) / 3) | 0;
@@ -9276,62 +5881,54 @@ var $justinmimbs$date$Date$quarterToMonth = function (q) {
 };
 var $justinmimbs$date$Date$floor = F2(
 	function (interval, date) {
-		var rd = date.a;
-		switch (interval.$) {
-			case 'Year':
+		var rd = date;
+		switch (interval) {
+			case 0:
 				return $justinmimbs$date$Date$firstOfYear(
 					$justinmimbs$date$Date$year(date));
-			case 'Quarter':
+			case 1:
 				return A2(
 					$justinmimbs$date$Date$firstOfMonth,
 					$justinmimbs$date$Date$year(date),
 					$justinmimbs$date$Date$quarterToMonth(
 						$justinmimbs$date$Date$quarter(date)));
-			case 'Month':
+			case 2:
 				return A2(
 					$justinmimbs$date$Date$firstOfMonth,
 					$justinmimbs$date$Date$year(date),
 					$justinmimbs$date$Date$month(date));
-			case 'Week':
-				return $justinmimbs$date$Date$RD(
-					rd - A2($justinmimbs$date$Date$daysSincePreviousWeekday, $elm$time$Time$Mon, date));
-			case 'Monday':
-				return $justinmimbs$date$Date$RD(
-					rd - A2($justinmimbs$date$Date$daysSincePreviousWeekday, $elm$time$Time$Mon, date));
-			case 'Tuesday':
-				return $justinmimbs$date$Date$RD(
-					rd - A2($justinmimbs$date$Date$daysSincePreviousWeekday, $elm$time$Time$Tue, date));
-			case 'Wednesday':
-				return $justinmimbs$date$Date$RD(
-					rd - A2($justinmimbs$date$Date$daysSincePreviousWeekday, $elm$time$Time$Wed, date));
-			case 'Thursday':
-				return $justinmimbs$date$Date$RD(
-					rd - A2($justinmimbs$date$Date$daysSincePreviousWeekday, $elm$time$Time$Thu, date));
-			case 'Friday':
-				return $justinmimbs$date$Date$RD(
-					rd - A2($justinmimbs$date$Date$daysSincePreviousWeekday, $elm$time$Time$Fri, date));
-			case 'Saturday':
-				return $justinmimbs$date$Date$RD(
-					rd - A2($justinmimbs$date$Date$daysSincePreviousWeekday, $elm$time$Time$Sat, date));
-			case 'Sunday':
-				return $justinmimbs$date$Date$RD(
-					rd - A2($justinmimbs$date$Date$daysSincePreviousWeekday, $elm$time$Time$Sun, date));
+			case 3:
+				return rd - A2($justinmimbs$date$Date$daysSincePreviousWeekday, 0, date);
+			case 4:
+				return rd - A2($justinmimbs$date$Date$daysSincePreviousWeekday, 0, date);
+			case 5:
+				return rd - A2($justinmimbs$date$Date$daysSincePreviousWeekday, 1, date);
+			case 6:
+				return rd - A2($justinmimbs$date$Date$daysSincePreviousWeekday, 2, date);
+			case 7:
+				return rd - A2($justinmimbs$date$Date$daysSincePreviousWeekday, 3, date);
+			case 8:
+				return rd - A2($justinmimbs$date$Date$daysSincePreviousWeekday, 4, date);
+			case 9:
+				return rd - A2($justinmimbs$date$Date$daysSincePreviousWeekday, 5, date);
+			case 10:
+				return rd - A2($justinmimbs$date$Date$daysSincePreviousWeekday, 6, date);
 			default:
 				return date;
 		}
 	});
 var $justinmimbs$date$Date$intervalToUnits = function (interval) {
-	switch (interval.$) {
-		case 'Year':
-			return _Utils_Tuple2(1, $justinmimbs$date$Date$Years);
-		case 'Quarter':
-			return _Utils_Tuple2(3, $justinmimbs$date$Date$Months);
-		case 'Month':
-			return _Utils_Tuple2(1, $justinmimbs$date$Date$Months);
-		case 'Day':
-			return _Utils_Tuple2(1, $justinmimbs$date$Date$Days);
+	switch (interval) {
+		case 0:
+			return _Utils_Tuple2(1, 0);
+		case 1:
+			return _Utils_Tuple2(3, 1);
+		case 2:
+			return _Utils_Tuple2(1, 1);
+		case 11:
+			return _Utils_Tuple2(1, 3);
 		default:
-			return _Utils_Tuple2(1, $justinmimbs$date$Date$Weeks);
+			return _Utils_Tuple2(1, 2);
 	}
 };
 var $justinmimbs$date$Date$ceiling = F2(
@@ -9349,36 +5946,36 @@ var $justinmimbs$date$Date$ceiling = F2(
 var $author$project$Calendar$ceilingMonth = function (date) {
 	return A3(
 		$justinmimbs$date$Date$add,
-		$justinmimbs$date$Date$Days,
+		3,
 		-1,
 		A2(
 			$justinmimbs$date$Date$floor,
-			$justinmimbs$date$Date$Month,
-			A3($justinmimbs$date$Date$add, $justinmimbs$date$Date$Months, 1, date)));
+			2,
+			A3($justinmimbs$date$Date$add, 1, 1, date)));
 };
-var $justinmimbs$date$Date$Friday = {$: 'Friday'};
-var $justinmimbs$date$Date$Monday = {$: 'Monday'};
-var $justinmimbs$date$Date$Saturday = {$: 'Saturday'};
-var $justinmimbs$date$Date$Sunday = {$: 'Sunday'};
-var $justinmimbs$date$Date$Thursday = {$: 'Thursday'};
-var $justinmimbs$date$Date$Tuesday = {$: 'Tuesday'};
-var $justinmimbs$date$Date$Wednesday = {$: 'Wednesday'};
+var $justinmimbs$date$Date$Friday = 8;
+var $justinmimbs$date$Date$Monday = 4;
+var $justinmimbs$date$Date$Saturday = 9;
+var $justinmimbs$date$Date$Sunday = 10;
+var $justinmimbs$date$Date$Thursday = 7;
+var $justinmimbs$date$Date$Tuesday = 5;
+var $justinmimbs$date$Date$Wednesday = 6;
 var $author$project$Calendar$endOfWeek = function (weekday) {
-	switch (weekday.$) {
-		case 'Mon':
-			return $justinmimbs$date$Date$Sunday;
-		case 'Tue':
-			return $justinmimbs$date$Date$Monday;
-		case 'Wed':
-			return $justinmimbs$date$Date$Tuesday;
-		case 'Thu':
-			return $justinmimbs$date$Date$Wednesday;
-		case 'Fri':
-			return $justinmimbs$date$Date$Thursday;
-		case 'Sat':
-			return $justinmimbs$date$Date$Friday;
+	switch (weekday) {
+		case 0:
+			return 10;
+		case 1:
+			return 4;
+		case 2:
+			return 5;
+		case 3:
+			return 6;
+		case 4:
+			return 7;
+		case 5:
+			return 8;
 		default:
-			return $justinmimbs$date$Date$Saturday;
+			return 9;
 	}
 };
 var $justinmimbs$date$Date$rangeHelp = F5(
@@ -9386,19 +5983,12 @@ var $justinmimbs$date$Date$rangeHelp = F5(
 		rangeHelp:
 		while (true) {
 			if (_Utils_cmp(current, until) < 0) {
-				var _v0 = A3(
-					$justinmimbs$date$Date$add,
-					unit,
-					step,
-					$justinmimbs$date$Date$RD(current));
-				var next = _v0.a;
+				var _v0 = A3($justinmimbs$date$Date$add, unit, step, current);
+				var next = _v0;
 				var $temp$unit = unit,
 					$temp$step = step,
 					$temp$until = until,
-					$temp$revList = A2(
-					$elm$core$List$cons,
-					$justinmimbs$date$Date$RD(current),
-					revList),
+					$temp$revList = A2($elm$core$List$cons, current, revList),
 					$temp$current = next;
 				unit = $temp$unit;
 				step = $temp$step;
@@ -9413,16 +6003,13 @@ var $justinmimbs$date$Date$rangeHelp = F5(
 	});
 var $justinmimbs$date$Date$range = F4(
 	function (interval, step, _v0, _v1) {
-		var start = _v0.a;
-		var until = _v1.a;
+		var start = _v0;
+		var until = _v1;
 		var _v2 = $justinmimbs$date$Date$intervalToUnits(interval);
 		var n = _v2.a;
 		var unit = _v2.b;
-		var _v3 = A2(
-			$justinmimbs$date$Date$ceiling,
-			interval,
-			$justinmimbs$date$Date$RD(start));
-		var first = _v3.a;
+		var _v3 = A2($justinmimbs$date$Date$ceiling, interval, start);
+		var first = _v3;
 		return (_Utils_cmp(first, until) < 0) ? A5(
 			$justinmimbs$date$Date$rangeHelp,
 			unit,
@@ -9432,37 +6019,37 @@ var $justinmimbs$date$Date$range = F4(
 			first) : _List_Nil;
 	});
 var $author$project$Calendar$startOfWeek = function (weekday) {
-	switch (weekday.$) {
-		case 'Mon':
-			return $justinmimbs$date$Date$Monday;
-		case 'Tue':
-			return $justinmimbs$date$Date$Tuesday;
-		case 'Wed':
-			return $justinmimbs$date$Date$Wednesday;
-		case 'Thu':
-			return $justinmimbs$date$Date$Thursday;
-		case 'Fri':
-			return $justinmimbs$date$Date$Friday;
-		case 'Sat':
-			return $justinmimbs$date$Date$Saturday;
+	switch (weekday) {
+		case 0:
+			return 4;
+		case 1:
+			return 5;
+		case 2:
+			return 6;
+		case 3:
+			return 7;
+		case 4:
+			return 8;
+		case 5:
+			return 9;
 		default:
-			return $justinmimbs$date$Date$Sunday;
+			return 10;
 	}
 };
 var $author$project$Calendar$monthDateRange = function (options) {
 	var lastDate = A3(
 		$justinmimbs$date$Date$add,
-		$justinmimbs$date$Date$Days,
+		3,
 		1,
 		A2(
 			$justinmimbs$date$Date$ceiling,
-			$author$project$Calendar$endOfWeek(options.weekStartsOn),
-			$author$project$Calendar$ceilingMonth(options.period)));
+			$author$project$Calendar$endOfWeek(options.w),
+			$author$project$Calendar$ceilingMonth(options.t)));
 	var firstDay = A2(
 		$justinmimbs$date$Date$floor,
-		$author$project$Calendar$startOfWeek(options.weekStartsOn),
-		A2($justinmimbs$date$Date$floor, $justinmimbs$date$Date$Month, options.period));
-	return A4($justinmimbs$date$Date$range, $justinmimbs$date$Date$Day, 1, firstDay, lastDate);
+		$author$project$Calendar$startOfWeek(options.w),
+		A2($justinmimbs$date$Date$floor, 2, options.t));
+	return A4($justinmimbs$date$Date$range, 11, 1, firstDay, lastDate);
 };
 var $author$project$Calendar$allHours = A2($elm$core$List$range, 0, 23);
 var $elm$core$List$append = F2(
@@ -9529,10 +6116,10 @@ var $author$project$Calendar$viewHour = F2(
 				_List_fromArray(
 					[
 						$elm$html$Html$text(
-						options.use24HourTime ? (A3(
+						options.W ? (A3(
 							$elm$core$String$padLeft,
 							2,
-							_Utils_chr('0'),
+							'0',
 							$elm$core$String$fromInt(hour)) + ':00') : ((!hour) ? '12am' : ((hour < 12) ? ($elm$core$String$fromInt(hour) + 'am') : ((hour === 12) ? '12pm' : ($elm$core$String$fromInt(hour - 12) + 'pm')))))
 					])),
 				A2(
@@ -9553,35 +6140,35 @@ var $justinmimbs$date$Date$numberToWeekday = function (wdn) {
 	var _v0 = A2($elm$core$Basics$max, 1, wdn);
 	switch (_v0) {
 		case 1:
-			return $elm$time$Time$Mon;
+			return 0;
 		case 2:
-			return $elm$time$Time$Tue;
+			return 1;
 		case 3:
-			return $elm$time$Time$Wed;
+			return 2;
 		case 4:
-			return $elm$time$Time$Thu;
+			return 3;
 		case 5:
-			return $elm$time$Time$Fri;
+			return 4;
 		case 6:
-			return $elm$time$Time$Sat;
+			return 5;
 		default:
-			return $elm$time$Time$Sun;
+			return 6;
 	}
 };
 var $justinmimbs$date$Date$weekday = A2($elm$core$Basics$composeR, $justinmimbs$date$Date$weekdayNumber, $justinmimbs$date$Date$numberToWeekday);
 var $author$project$Calendar$weekdayToLabel = function (weekday) {
-	switch (weekday.$) {
-		case 'Sun':
+	switch (weekday) {
+		case 6:
 			return 'Sunday';
-		case 'Mon':
+		case 0:
 			return 'Monday';
-		case 'Tue':
+		case 1:
 			return 'Tuesday';
-		case 'Wed':
+		case 2:
 			return 'Wednesday';
-		case 'Thu':
+		case 3:
 			return 'Thursday';
-		case 'Fri':
+		case 4:
 			return 'Friday';
 		default:
 			return 'Saturday';
@@ -9606,11 +6193,11 @@ var $author$project$Calendar$viewDay = function (options) {
 					]),
 				_List_Nil),
 				function () {
-				var _v0 = options.viewDayHeader;
-				if (_v0.$ === 'Just') {
+				var _v0 = options.aa;
+				if (!_v0.$) {
 					var viewDayHeader = _v0.a;
 					return viewDayHeader(
-						$justinmimbs$date$Date$weekday(options.period));
+						$justinmimbs$date$Date$weekday(options.t));
 				} else {
 					return A2(
 						$elm$html$Html$div,
@@ -9628,7 +6215,7 @@ var $author$project$Calendar$viewDay = function (options) {
 							[
 								$elm$html$Html$text(
 								$author$project$Calendar$weekdayToLabel(
-									$justinmimbs$date$Date$weekday(options.period)))
+									$justinmimbs$date$Date$weekday(options.t)))
 							]));
 				}
 			}(),
@@ -9677,43 +6264,43 @@ var $author$project$Calendar$viewDay = function (options) {
 			]));
 };
 var $author$project$Calendar$daysOfWeek = function (start) {
-	switch (start.$) {
-		case 'Mon':
+	switch (start) {
+		case 0:
 			return _List_fromArray(
-				[$elm$time$Time$Mon, $elm$time$Time$Tue, $elm$time$Time$Wed, $elm$time$Time$Thu, $elm$time$Time$Fri, $elm$time$Time$Sat, $elm$time$Time$Sun]);
-		case 'Tue':
+				[0, 1, 2, 3, 4, 5, 6]);
+		case 1:
 			return _List_fromArray(
-				[$elm$time$Time$Tue, $elm$time$Time$Wed, $elm$time$Time$Thu, $elm$time$Time$Fri, $elm$time$Time$Sat, $elm$time$Time$Sun, $elm$time$Time$Mon]);
-		case 'Wed':
+				[1, 2, 3, 4, 5, 6, 0]);
+		case 2:
 			return _List_fromArray(
-				[$elm$time$Time$Wed, $elm$time$Time$Thu, $elm$time$Time$Fri, $elm$time$Time$Sat, $elm$time$Time$Sun, $elm$time$Time$Mon, $elm$time$Time$Tue]);
-		case 'Thu':
+				[2, 3, 4, 5, 6, 0, 1]);
+		case 3:
 			return _List_fromArray(
-				[$elm$time$Time$Thu, $elm$time$Time$Fri, $elm$time$Time$Sat, $elm$time$Time$Sun, $elm$time$Time$Mon, $elm$time$Time$Tue, $elm$time$Time$Wed]);
-		case 'Fri':
+				[3, 4, 5, 6, 0, 1, 2]);
+		case 4:
 			return _List_fromArray(
-				[$elm$time$Time$Fri, $elm$time$Time$Sat, $elm$time$Time$Sun, $elm$time$Time$Mon, $elm$time$Time$Tue, $elm$time$Time$Wed, $elm$time$Time$Thu]);
-		case 'Sat':
+				[4, 5, 6, 0, 1, 2, 3]);
+		case 5:
 			return _List_fromArray(
-				[$elm$time$Time$Sat, $elm$time$Time$Sun, $elm$time$Time$Mon, $elm$time$Time$Tue, $elm$time$Time$Wed, $elm$time$Time$Thu, $elm$time$Time$Fri]);
+				[5, 6, 0, 1, 2, 3, 4]);
 		default:
 			return _List_fromArray(
-				[$elm$time$Time$Sun, $elm$time$Time$Mon, $elm$time$Time$Tue, $elm$time$Time$Wed, $elm$time$Time$Thu, $elm$time$Time$Fri, $elm$time$Time$Sat]);
+				[6, 0, 1, 2, 3, 4, 5]);
 	}
 };
 var $author$project$Calendar$weekdayToShortLabel = function (weekday) {
-	switch (weekday.$) {
-		case 'Sun':
+	switch (weekday) {
+		case 6:
 			return 'Sun';
-		case 'Mon':
+		case 0:
 			return 'Mon';
-		case 'Tue':
+		case 1:
 			return 'Tue';
-		case 'Wed':
+		case 2:
 			return 'Wed';
-		case 'Thu':
+		case 3:
 			return 'Thu';
-		case 'Fri':
+		case 4:
 			return 'Fri';
 		default:
 			return 'Sat';
@@ -9724,8 +6311,8 @@ var $author$project$Calendar$viewDaysOfWeek = function (options) {
 		$elm$core$List$indexedMap,
 		F2(
 			function (index, weekday) {
-				var _v0 = options.viewWeekdayHeader;
-				if (_v0.$ === 'Just') {
+				var _v0 = options.ag;
+				if (!_v0.$) {
 					var viewWeekdayHeader = _v0.a;
 					return A2(viewWeekdayHeader, index, weekday);
 				} else {
@@ -9747,18 +6334,18 @@ var $author$project$Calendar$viewDaysOfWeek = function (options) {
 							]));
 				}
 			}),
-		$author$project$Calendar$daysOfWeek(options.weekStartsOn));
+		$author$project$Calendar$daysOfWeek(options.w));
 };
 var $author$project$Calendar$viewMonthDay = F3(
 	function (options, index, date) {
 		var row = ((index / 7) | 0) + 2;
 		var column = A2($elm$core$Basics$modBy, 7, index) + 1;
-		var _v0 = options.viewDayOfMonth;
-		if (_v0.$ === 'Just') {
+		var _v0 = options.ab;
+		if (!_v0.$) {
 			var viewDayOfMonth = _v0.a;
 			return A2(
 				viewDayOfMonth,
-				{column: column, row: row},
+				{ay: column, a$: row},
 				date);
 		} else {
 			return A2(
@@ -9805,28 +6392,28 @@ var $author$project$Calendar$viewMonthDays = function (options) {
 };
 var $elm$html$Html$h2 = _VirtualDom_node('h2');
 var $author$project$Calendar$monthToLabel = function (month) {
-	switch (month.$) {
-		case 'Jan':
+	switch (month) {
+		case 0:
 			return 'January';
-		case 'Feb':
+		case 1:
 			return 'February';
-		case 'Mar':
+		case 2:
 			return 'March';
-		case 'Apr':
+		case 3:
 			return 'April';
-		case 'May':
+		case 4:
 			return 'May';
-		case 'Jun':
+		case 5:
 			return 'June';
-		case 'Jul':
+		case 6:
 			return 'July';
-		case 'Aug':
+		case 7:
 			return 'August';
-		case 'Sep':
+		case 8:
 			return 'September';
-		case 'Oct':
+		case 9:
 			return 'October';
-		case 'Nov':
+		case 10:
 			return 'November';
 		default:
 			return 'December';
@@ -9834,8 +6421,8 @@ var $author$project$Calendar$monthToLabel = function (month) {
 };
 var $author$project$Calendar$viewMonthDayOfYear = F3(
 	function (options, month, date) {
-		var _v0 = options.viewDayOfMonthOfYear;
-		if (_v0.$ === 'Just') {
+		var _v0 = options.ac;
+		if (!_v0.$) {
 			var viewDayOfMonthOfYear = _v0.a;
 			return A2(viewDayOfMonthOfYear, month, date);
 		} else {
@@ -9882,25 +6469,25 @@ var $author$project$Calendar$viewMonthDaysOfYear = F2(
 	function (options, month) {
 		var period = A3(
 			$justinmimbs$date$Date$fromCalendarDate,
-			$justinmimbs$date$Date$year(options.period),
+			$justinmimbs$date$Date$year(options.t),
 			month,
 			1);
 		var lastDate = A3(
 			$justinmimbs$date$Date$add,
-			$justinmimbs$date$Date$Days,
+			3,
 			1,
 			A2(
 				$justinmimbs$date$Date$ceiling,
-				$author$project$Calendar$endOfWeek(options.weekStartsOn),
+				$author$project$Calendar$endOfWeek(options.w),
 				$author$project$Calendar$ceilingMonth(period)));
 		var firstDay = A2(
 			$justinmimbs$date$Date$floor,
-			$author$project$Calendar$startOfWeek(options.weekStartsOn),
-			A2($justinmimbs$date$Date$floor, $justinmimbs$date$Date$Month, period));
+			$author$project$Calendar$startOfWeek(options.w),
+			A2($justinmimbs$date$Date$floor, 2, period));
 		return A2(
 			$elm$core$List$map,
 			A2($author$project$Calendar$viewMonthDayOfYear, options, month),
-			A4($justinmimbs$date$Date$range, $justinmimbs$date$Date$Day, 1, firstDay, lastDate));
+			A4($justinmimbs$date$Date$range, 11, 1, firstDay, lastDate));
 	});
 var $author$project$Calendar$viewMonthOfYear = F2(
 	function (options, month) {
@@ -9910,8 +6497,8 @@ var $author$project$Calendar$viewMonthOfYear = F2(
 			_List_fromArray(
 				[
 					function () {
-					var _v0 = options.viewMonthHeader;
-					if (_v0.$ === 'Just') {
+					var _v0 = options.ae;
+					if (!_v0.$) {
 						var viewMonthHeader = _v0.a;
 						return viewMonthHeader(month);
 					} else {
@@ -9974,10 +6561,10 @@ var $author$project$Calendar$viewWeekHour = F2(
 				_List_fromArray(
 					[
 						$elm$html$Html$text(
-						options.use24HourTime ? (A3(
+						options.W ? (A3(
 							$elm$core$String$padLeft,
 							2,
-							_Utils_chr('0'),
+							'0',
 							$elm$core$String$fromInt(hour)) + ':00') : ((!hour) ? '12am' : ((hour < 12) ? ($elm$core$String$fromInt(hour) + 'am') : ((hour === 12) ? '12pm' : ($elm$core$String$fromInt(hour - 12) + 'pm')))))
 					])),
 				dayHour,
@@ -10024,14 +6611,14 @@ var $author$project$Calendar$viewWeek = function (options) {
 						_List_Nil)
 					]),
 					function () {
-					var _v0 = A2($author$project$Calendar$weekBounds, options.weekStartsOn, options.period);
+					var _v0 = A2($author$project$Calendar$weekBounds, options.w, options.t);
 					var start = _v0.a;
 					var end = _v0.b;
 					return A2(
 						$elm$core$List$map,
 						function (date) {
-							var _v1 = options.viewDayOfWeekHeader;
-							if (_v1.$ === 'Just') {
+							var _v1 = options.ad;
+							if (!_v1.$) {
 								var viewDayOfWeekHeader = _v1.a;
 								return viewDayOfWeekHeader(date);
 							} else {
@@ -10063,10 +6650,10 @@ var $author$project$Calendar$viewWeek = function (options) {
 						},
 						A4(
 							$justinmimbs$date$Date$range,
-							$justinmimbs$date$Date$Day,
+							11,
 							1,
 							start,
-							A3($justinmimbs$date$Date$add, $justinmimbs$date$Date$Days, 1, end)));
+							A3($justinmimbs$date$Date$add, 3, 1, end)));
 				}(),
 					_List_fromArray(
 					[
@@ -10124,14 +6711,14 @@ var $author$project$Calendar$viewWeek = function (options) {
 				])));
 };
 var $author$project$Calendar$view = function (_v0) {
-	var options = _v0.a;
-	var _v1 = options.scope;
-	switch (_v1.$) {
-		case 'Day':
+	var options = _v0;
+	var _v1 = options.Z;
+	switch (_v1) {
+		case 0:
 			return $author$project$Calendar$viewDay(options);
-		case 'Week':
+		case 1:
 			return $author$project$Calendar$viewWeek(options);
-		case 'Month':
+		case 2:
 			var weeks = function (count) {
 				return $elm$core$Basics$ceiling(count / 7);
 			}(
@@ -10154,8 +6741,8 @@ var $author$project$Calendar$view = function (_v0) {
 					_Utils_ap(
 						$author$project$Calendar$viewMonthDays(options),
 						function () {
-							var _v2 = options.viewMultiDayEvents;
-							if (_v2.$ === 'Just') {
+							var _v2 = options.af;
+							if (!_v2.$) {
 								var viewMultiDayEvents = _v2.a;
 								return viewMultiDayEvents;
 							} else {
@@ -10174,7 +6761,7 @@ var $author$project$Calendar$view = function (_v0) {
 };
 var $elm$html$Html$button = _VirtualDom_node('button');
 var $elm$virtual_dom$VirtualDom$Normal = function (a) {
-	return {$: 'Normal', a: a};
+	return {$: 0, a: a};
 };
 var $elm$virtual_dom$VirtualDom$on = _VirtualDom_on;
 var $elm$html$Html$Events$on = F2(
@@ -10216,12 +6803,12 @@ var $author$project$Example$viewButtonGroup = F2(
 										[
 											A2($elm$html$Html$Attributes$style, 'border-radius', '0.5rem'),
 											A2($elm$html$Html$Attributes$style, 'padding', '0.25rem 0.5rem'),
-											$elm$html$Html$Events$onClick(only.onClick)
+											$elm$html$Html$Events$onClick(only.k)
 										]),
-									only.attributes),
+									only.p),
 								_List_fromArray(
 									[
-										$elm$html$Html$text(only.label)
+										$elm$html$Html$text(only.i)
 									]))
 							]);
 					} else {
@@ -10242,12 +6829,12 @@ var $author$project$Example$viewButtonGroup = F2(
 													A2($elm$html$Html$Attributes$style, 'border-top-left-radius', '0.5rem'),
 													A2($elm$html$Html$Attributes$style, 'border-bottom-left-radius', '0.5rem'),
 													A2($elm$html$Html$Attributes$style, 'padding', '0.25rem 0.5rem'),
-													$elm$html$Html$Events$onClick(first.onClick)
+													$elm$html$Html$Events$onClick(first.k)
 												]),
-											first.attributes),
+											first.p),
 										_List_fromArray(
 											[
-												$elm$html$Html$text(first.label)
+												$elm$html$Html$text(first.i)
 											]))
 									]),
 									function () {
@@ -10270,12 +6857,12 @@ var $author$project$Example$viewButtonGroup = F2(
 																A2($elm$html$Html$Attributes$style, 'border-top-right-radius', '0.5rem'),
 																A2($elm$html$Html$Attributes$style, 'border-bottom-right-radius', '0.5rem'),
 																A2($elm$html$Html$Attributes$style, 'padding', '0.25rem 0.5rem'),
-																$elm$html$Html$Events$onClick(last.onClick)
+																$elm$html$Html$Events$onClick(last.k)
 															]),
-														last.attributes),
+														last.p),
 													_List_fromArray(
 														[
-															$elm$html$Html$text(last.label)
+															$elm$html$Html$text(last.i)
 														])),
 												A2(
 													$elm$core$List$map,
@@ -10287,12 +6874,12 @@ var $author$project$Example$viewButtonGroup = F2(
 																	[
 																		A2($elm$html$Html$Attributes$style, 'border-radius', '0'),
 																		A2($elm$html$Html$Attributes$style, 'padding', '0.25rem 0.5rem'),
-																		$elm$html$Html$Events$onClick(button.onClick)
+																		$elm$html$Html$Events$onClick(button.k)
 																	]),
-																button.attributes),
+																button.p),
 															_List_fromArray(
 																[
-																	$elm$html$Html$text(button.label)
+																	$elm$html$Html$text(button.i)
 																]));
 													},
 													middle)));
@@ -10304,24 +6891,24 @@ var $author$project$Example$viewButtonGroup = F2(
 			}());
 	});
 var $author$project$Example$longEvent = {
-	color: 'aqua',
-	filter: F2(
+	X: 'aqua',
+	ai: F2(
 		function (period, day) {
 			return _Utils_eq(
 				$justinmimbs$date$Date$month(day),
 				$justinmimbs$date$Date$month(period)) && (($justinmimbs$date$Date$day(day) >= 15) && ($justinmimbs$date$Date$day(day) <= 29));
 		}),
-	title: 'Long Event'
+	_: 'Long Event'
 };
 var $author$project$Example$shortEvent = {
-	color: 'coral',
-	filter: F2(
+	X: 'coral',
+	ai: F2(
 		function (period, day) {
 			return _Utils_eq(
 				$justinmimbs$date$Date$month(day),
 				$justinmimbs$date$Date$month(period)) && (($justinmimbs$date$Date$day(day) >= 3) && ($justinmimbs$date$Date$day(day) <= 5));
 		}),
-	title: 'Short Event'
+	_: 'Short Event'
 };
 var $author$project$Example$events = _List_fromArray(
 	[$author$project$Example$shortEvent, $author$project$Example$longEvent]);
@@ -10330,7 +6917,7 @@ var $author$project$Calendar$calendarMonthBounds = F2(
 		var start = A2(
 			$justinmimbs$date$Date$floor,
 			$author$project$Calendar$startOfWeek(weekStartsOn),
-			A2($justinmimbs$date$Date$floor, $justinmimbs$date$Date$Month, date));
+			A2($justinmimbs$date$Date$floor, 2, date));
 		var end = A2(
 			$justinmimbs$date$Date$ceiling,
 			$author$project$Calendar$endOfWeek(weekStartsOn),
@@ -10425,7 +7012,7 @@ var $author$project$Calendar$findIndexHelp = F3(
 var $author$project$Calendar$findIndex = $author$project$Calendar$findIndexHelp(0);
 var $elm$core$Maybe$withDefault = F2(
 	function (_default, maybe) {
-		if (maybe.$ === 'Just') {
+		if (!maybe.$) {
 			var value = maybe.a;
 			return value;
 		} else {
@@ -10443,10 +7030,10 @@ var $author$project$Calendar$toRowAndColumn = F2(
 			A2(
 				$author$project$Calendar$findIndex,
 				$elm$core$Basics$eq(date),
-				A4($justinmimbs$date$Date$range, $justinmimbs$date$Date$Day, 1, start, end)));
+				A4($justinmimbs$date$Date$range, 11, 1, start, end)));
 		var column = A2($elm$core$Basics$modBy, 7, index) + 1;
 		var row = ((index / 7) | 0) + 2;
-		return {column: column, row: row};
+		return {ay: column, a$: row};
 	});
 var $author$project$Example$viewEvent = F2(
 	function (focalPeriod, event) {
@@ -10472,7 +7059,7 @@ var $author$project$Example$viewEvent = F2(
 				A2($elm$html$Html$Attributes$style, 'border-bottom-left-radius', '0.25rem'),
 				A2($elm$html$Html$Attributes$style, 'margin-left', '5px')
 			]);
-		var _v0 = A2($author$project$Calendar$calendarMonthBounds, $elm$time$Time$Sun, focalPeriod);
+		var _v0 = A2($author$project$Calendar$calendarMonthBounds, 6, focalPeriod);
 		var start = _v0.a;
 		var end = _v0.b;
 		var rowsAndColumns = A2(
@@ -10483,53 +7070,53 @@ var $author$project$Example$viewEvent = F2(
 				var columns = A2(
 					$elm$core$List$map,
 					function ($) {
-						return $.column;
+						return $.ay;
 					},
 					A2($elm$core$List$cons, first, rest));
 				return {
-					columnEnd: A2(
+					az: A2(
 						$elm$core$Maybe$withDefault,
-						first.column,
+						first.ay,
 						$elm$core$List$maximum(columns)),
-					columnStart: A2(
+					aA: A2(
 						$elm$core$Maybe$withDefault,
-						first.column,
+						first.ay,
 						$elm$core$List$minimum(columns)),
-					row: first.row
+					a$: first.a$
 				};
 			},
 			A2(
 				$elmcraft$core_extra$List$Extra$groupWhile,
 				F2(
 					function (a, b) {
-						return _Utils_eq(a.row, b.row);
+						return _Utils_eq(a.a$, b.a$);
 					}),
 				A2(
 					$elm$core$List$sortBy,
 					function ($) {
-						return $.row;
+						return $.a$;
 					},
 					A2(
 						$elm$core$List$map,
-						$author$project$Calendar$toRowAndColumn($elm$time$Time$Sun),
+						$author$project$Calendar$toRowAndColumn(6),
 						A2(
 							$elm$core$List$filter,
-							event.filter(focalPeriod),
-							A4($justinmimbs$date$Date$range, $justinmimbs$date$Date$Day, 1, start, end))))));
+							event.ai(focalPeriod),
+							A4($justinmimbs$date$Date$range, 11, 1, start, end))))));
 		var rowCount = $elm$core$List$length(rowsAndColumns);
 		return A2(
 			$elm$core$List$indexedMap,
 			F2(
 				function (index, _v1) {
-					var row = _v1.row;
-					var columnStart = _v1.columnStart;
-					var columnEnd = _v1.columnEnd;
+					var row = _v1.a$;
+					var columnStart = _v1.aA;
+					var columnEnd = _v1.az;
 					return A2(
 						$elm$html$Html$div,
 						_Utils_ap(
 							_List_fromArray(
 								[
-									A2($elm$html$Html$Attributes$style, 'background', event.color),
+									A2($elm$html$Html$Attributes$style, 'background', event.X),
 									A2($elm$html$Html$Attributes$style, 'padding', '0.25rem 0.5rem'),
 									A2(
 									$elm$html$Html$Attributes$style,
@@ -10542,7 +7129,7 @@ var $author$project$Example$viewEvent = F2(
 									A2($elm$html$Html$Attributes$style, 'margin-top', '2rem'),
 									A2($elm$html$Html$Attributes$style, 'margin-bottom', '3px'),
 									A2($elm$html$Html$Attributes$style, 'border-style', 'solid'),
-									A2($elm$html$Html$Attributes$style, 'border-color', event.color),
+									A2($elm$html$Html$Attributes$style, 'border-color', event.X),
 									A2($elm$html$Html$Attributes$style, 'border-width', '2px')
 								]),
 							_Utils_ap(
@@ -10556,7 +7143,7 @@ var $author$project$Example$viewEvent = F2(
 											(_Utils_eq(index, rowCount - 1) && (index > 0)) ? middleStartStyles : _List_Nil))))),
 						_List_fromArray(
 							[
-								$elm$html$Html$text(event.title)
+								$elm$html$Html$text(event._)
 							]));
 				}),
 			rowsAndColumns);
@@ -10568,13 +7155,13 @@ var $author$project$Example$viewCustomEvent = function (focalPeriod) {
 		$author$project$Example$events);
 };
 var $author$project$Example$UserClickedDate = function (a) {
-	return {$: 'UserClickedDate', a: a};
+	return {$: 1, a: a};
 };
 var $elm$html$Html$span = _VirtualDom_node('span');
 var $author$project$Example$viewDayOfMonthCustom = F3(
 	function (today, _v0, date) {
-		var column = _v0.column;
-		var row = _v0.row;
+		var column = _v0.ay;
+		var row = _v0.a$;
 		return A2(
 			$elm$html$Html$div,
 			_List_fromArray(
@@ -10780,28 +7367,28 @@ var $author$project$Example$viewToggleButton = function (options) {
 			$author$project$Example$buttonStyles,
 			_List_fromArray(
 				[
-					$elm$html$Html$Events$onClick(options.onClick),
-					options.active ? A2($elm$html$Html$Attributes$style, 'background-color', 'cornflowerblue') : $elm$html$Html$Attributes$class(''),
-					options.active ? A2($elm$html$Html$Attributes$style, 'color', 'white') : $elm$html$Html$Attributes$class('')
+					$elm$html$Html$Events$onClick(options.k),
+					options.J ? A2($elm$html$Html$Attributes$style, 'background-color', 'cornflowerblue') : $elm$html$Html$Attributes$class(''),
+					options.J ? A2($elm$html$Html$Attributes$style, 'color', 'white') : $elm$html$Html$Attributes$class('')
 				])),
 		_List_fromArray(
 			[
-				$elm$html$Html$text(options.label)
+				$elm$html$Html$text(options.i)
 			]));
 };
 var $author$project$Example$weekdayToFullLabel = function (weekday) {
-	switch (weekday.$) {
-		case 'Mon':
+	switch (weekday) {
+		case 0:
 			return 'Monday';
-		case 'Tue':
+		case 1:
 			return 'Tuesday';
-		case 'Wed':
+		case 2:
 			return 'Wednesday';
-		case 'Thu':
+		case 3:
 			return 'Thursday';
-		case 'Fri':
+		case 4:
 			return 'Friday';
-		case 'Sat':
+		case 5:
 			return 'Saturday';
 		default:
 			return 'Sunday';
@@ -10853,65 +7440,59 @@ var $justinmimbs$date$Date$withOrdinalSuffix = function (n) {
 };
 var $author$project$Calendar$withViewDayOfMonth = F2(
 	function (viewDayOfMonth, _v0) {
-		var options = _v0.a;
-		return $author$project$Calendar$Config(
-			_Utils_update(
-				options,
-				{
-					viewDayOfMonth: $elm$core$Maybe$Just(viewDayOfMonth)
-				}));
+		var options = _v0;
+		return _Utils_update(
+			options,
+			{
+				ab: $elm$core$Maybe$Just(viewDayOfMonth)
+			});
 	});
 var $author$project$Calendar$withViewDayOfMonthOfYear = F2(
 	function (viewDayOfMonthOfYear, _v0) {
-		var options = _v0.a;
-		return $author$project$Calendar$Config(
-			_Utils_update(
-				options,
-				{
-					viewDayOfMonthOfYear: $elm$core$Maybe$Just(viewDayOfMonthOfYear)
-				}));
+		var options = _v0;
+		return _Utils_update(
+			options,
+			{
+				ac: $elm$core$Maybe$Just(viewDayOfMonthOfYear)
+			});
 	});
 var $author$project$Calendar$withViewMonthHeader = F2(
 	function (viewMonthHeader, _v0) {
-		var options = _v0.a;
-		return $author$project$Calendar$Config(
-			_Utils_update(
-				options,
-				{
-					viewMonthHeader: $elm$core$Maybe$Just(viewMonthHeader)
-				}));
+		var options = _v0;
+		return _Utils_update(
+			options,
+			{
+				ae: $elm$core$Maybe$Just(viewMonthHeader)
+			});
 	});
 var $author$project$Calendar$withViewMultiDayEvent = F2(
 	function (viewMultiDayEvents, _v0) {
-		var options = _v0.a;
-		return $author$project$Calendar$Config(
-			_Utils_update(
-				options,
-				{
-					viewMultiDayEvents: $elm$core$Maybe$Just(viewMultiDayEvents)
-				}));
+		var options = _v0;
+		return _Utils_update(
+			options,
+			{
+				af: $elm$core$Maybe$Just(viewMultiDayEvents)
+			});
 	});
 var $author$project$Calendar$withViewWeekdayHeader = F2(
 	function (viewWeekdayHeader, _v0) {
-		var options = _v0.a;
-		return $author$project$Calendar$Config(
-			_Utils_update(
-				options,
-				{
-					viewWeekdayHeader: $elm$core$Maybe$Just(viewWeekdayHeader)
-				}));
+		var options = _v0;
+		return _Utils_update(
+			options,
+			{
+				ag: $elm$core$Maybe$Just(viewWeekdayHeader)
+			});
 	});
 var $author$project$Calendar$withWeekStartsOn = F2(
 	function (weekday, _v0) {
-		var options = _v0.a;
-		return $author$project$Calendar$Config(
-			_Utils_update(
-				options,
-				{weekStartsOn: weekday}));
+		var options = _v0;
+		return _Utils_update(
+			options,
+			{w: weekday});
 	});
 var $author$project$Example$view = function (model) {
 	return {
-		body: _List_fromArray(
+		be: _List_fromArray(
 			[
 				A2(
 				$elm$html$Html$h1,
@@ -10954,14 +7535,14 @@ var $author$project$Example$view = function (model) {
 										_List_Nil,
 										_List_fromArray(
 											[
-												{attributes: _List_Nil, label: 'Previous', onClick: $author$project$Example$UserClickedPreviousPeriod},
-												{attributes: _List_Nil, label: 'Next', onClick: $author$project$Example$UserClickedNextPeriod}
+												{p: _List_Nil, i: 'Previous', k: $author$project$Example$UserClickedPreviousPeriod},
+												{p: _List_Nil, i: 'Next', k: $author$project$Example$UserClickedNextPeriod}
 											])),
 										$author$project$Example$viewToggleButton(
 										{
-											active: _Utils_eq(model.selectedDate, model.today),
-											label: 'Today',
-											onClick: $author$project$Example$UserClickedTodayPeriod
+											J: _Utils_eq(model.u, model.N),
+											i: 'Today',
+											k: $author$project$Example$UserClickedTodayPeriod
 										})
 									])),
 								A2(
@@ -10971,26 +7552,26 @@ var $author$project$Example$view = function (model) {
 										A2($elm$html$Html$Attributes$style, 'text-align', 'center')
 									]),
 								function () {
-									var _v0 = model.scope;
-									switch (_v0.$) {
-										case 'Year':
+									var _v0 = model.Z;
+									switch (_v0) {
+										case 3:
 											return _List_fromArray(
 												[
 													$elm$html$Html$text(
 													$elm$core$String$fromInt(
-														$justinmimbs$date$Date$year(model.period)))
+														$justinmimbs$date$Date$year(model.t)))
 												]);
-										case 'Month':
+										case 2:
 											var month = $author$project$Example$monthToLabel(
-												$justinmimbs$date$Date$month(model.period));
+												$justinmimbs$date$Date$month(model.t));
 											return _List_fromArray(
 												[
 													$elm$html$Html$text(
 													month + (' ' + $elm$core$String$fromInt(
-														$justinmimbs$date$Date$year(model.period))))
+														$justinmimbs$date$Date$year(model.t))))
 												]);
-										case 'Week':
-											var _v1 = A2($author$project$Calendar$weekBounds, $elm$time$Time$Sun, model.period);
+										case 1:
+											var _v1 = A2($author$project$Calendar$weekBounds, 6, model.t);
 											var startDate = _v1.a;
 											var endDate = _v1.b;
 											var endDay = $justinmimbs$date$Date$withOrdinalSuffix(
@@ -11011,11 +7592,11 @@ var $author$project$Example$view = function (model) {
 												]);
 										default:
 											var year = $elm$core$String$fromInt(
-												$justinmimbs$date$Date$year(model.period));
+												$justinmimbs$date$Date$year(model.t));
 											var month = $author$project$Example$monthToLabel(
-												$justinmimbs$date$Date$month(model.period));
+												$justinmimbs$date$Date$month(model.t));
 											var day = $justinmimbs$date$Date$withOrdinalSuffix(
-												$justinmimbs$date$Date$day(model.period));
+												$justinmimbs$date$Date$day(model.t));
 											return _List_fromArray(
 												[
 													$elm$html$Html$text(year + (' ' + (month + (' ' + day))))
@@ -11031,9 +7612,9 @@ var $author$project$Example$view = function (model) {
 								_List_fromArray(
 									[
 										{
-										attributes: function () {
-											var _v2 = model.scope;
-											if (_v2.$ === 'Year') {
+										p: function () {
+											var _v2 = model.Z;
+											if (_v2 === 3) {
 												return _List_fromArray(
 													[
 														A2($elm$html$Html$Attributes$style, 'background-color', 'cornflowerblue'),
@@ -11043,13 +7624,13 @@ var $author$project$Example$view = function (model) {
 												return _List_Nil;
 											}
 										}(),
-										label: 'Year',
-										onClick: $author$project$Example$UserClickedScope($author$project$Calendar$Year)
+										i: 'Year',
+										k: $author$project$Example$UserClickedScope(3)
 									},
 										{
-										attributes: function () {
-											var _v3 = model.scope;
-											if (_v3.$ === 'Month') {
+										p: function () {
+											var _v3 = model.Z;
+											if (_v3 === 2) {
 												return _List_fromArray(
 													[
 														A2($elm$html$Html$Attributes$style, 'background-color', 'cornflowerblue'),
@@ -11059,13 +7640,13 @@ var $author$project$Example$view = function (model) {
 												return _List_Nil;
 											}
 										}(),
-										label: 'Month',
-										onClick: $author$project$Example$UserClickedScope($author$project$Calendar$Month)
+										i: 'Month',
+										k: $author$project$Example$UserClickedScope(2)
 									},
 										{
-										attributes: function () {
-											var _v4 = model.scope;
-											if (_v4.$ === 'Week') {
+										p: function () {
+											var _v4 = model.Z;
+											if (_v4 === 1) {
 												return _List_fromArray(
 													[
 														A2($elm$html$Html$Attributes$style, 'background-color', 'cornflowerblue'),
@@ -11075,13 +7656,13 @@ var $author$project$Example$view = function (model) {
 												return _List_Nil;
 											}
 										}(),
-										label: 'Week',
-										onClick: $author$project$Example$UserClickedScope($author$project$Calendar$Week)
+										i: 'Week',
+										k: $author$project$Example$UserClickedScope(1)
 									},
 										{
-										attributes: function () {
-											var _v5 = model.scope;
-											if (_v5.$ === 'Day') {
+										p: function () {
+											var _v5 = model.Z;
+											if (!_v5) {
 												return _List_fromArray(
 													[
 														A2($elm$html$Html$Attributes$style, 'background-color', 'cornflowerblue'),
@@ -11091,8 +7672,8 @@ var $author$project$Example$view = function (model) {
 												return _List_Nil;
 											}
 										}(),
-										label: 'Day',
-										onClick: $author$project$Example$UserClickedScope($author$project$Calendar$Day)
+										i: 'Day',
+										k: $author$project$Example$UserClickedScope(0)
 									}
 									]))
 							]))
@@ -11110,13 +7691,13 @@ var $author$project$Example$view = function (model) {
 						_List_fromArray(
 							[c]));
 				};
-				var _v6 = model.scope;
-				switch (_v6.$) {
-					case 'Year':
+				var _v6 = model.Z;
+				switch (_v6) {
+					case 3:
 						return wrapper(cal);
-					case 'Month':
+					case 2:
 						return wrapper(cal);
-					case 'Week':
+					case 1:
 						return cal;
 					default:
 						return cal;
@@ -11125,31 +7706,31 @@ var $author$project$Example$view = function (model) {
 				$author$project$Calendar$view(
 					A2(
 						$author$project$Calendar$withViewMultiDayEvent,
-						$author$project$Example$viewCustomEvent(model.period),
+						$author$project$Example$viewCustomEvent(model.t),
 						A2(
 							$author$project$Calendar$withWeekStartsOn,
-							$elm$time$Time$Sun,
+							6,
 							A3(
 								$author$project$Example$applyIf,
-								model.customMonthHeader,
+								model.C,
 								$author$project$Calendar$withViewMonthHeader(
-									$author$project$Example$viewMonthHeaderCustom(model.selectedDate)),
+									$author$project$Example$viewMonthHeaderCustom(model.u)),
 								A3(
 									$author$project$Example$applyIf,
-									model.customWeekdayHeader,
+									model.D,
 									$author$project$Calendar$withViewWeekdayHeader($author$project$Example$viewWeekdayHeaderCustom),
 									A3(
 										$author$project$Example$applyIf,
-										model.customDayOfMonth,
+										model.y,
 										$author$project$Calendar$withViewDayOfMonthOfYear(
-											$author$project$Example$viewDayOfMonthOfYearCustom(model.selectedDate)),
+											$author$project$Example$viewDayOfMonthOfYearCustom(model.u)),
 										A3(
 											$author$project$Example$applyIf,
-											model.customDayOfMonth,
+											model.y,
 											$author$project$Calendar$withViewDayOfMonth(
-												$author$project$Example$viewDayOfMonthCustom(model.selectedDate)),
+												$author$project$Example$viewDayOfMonthCustom(model.u)),
 											$author$project$Calendar$new(
-												{period: model.period, scope: model.scope}))))))))),
+												{t: model.t, Z: model.Z}))))))))),
 				A2($elm$html$Html$br, _List_Nil, _List_Nil),
 				A2(
 				$elm$html$Html$div,
@@ -11162,28 +7743,28 @@ var $author$project$Example$view = function (model) {
 					[
 						$author$project$Example$viewToggleButton(
 						{
-							active: model.customDayOfMonth,
-							label: model.customDayOfMonth ? 'Default day of month view' : 'Custom day of month view',
-							onClick: $author$project$Example$UserClickedCustomDayOfMonth
+							J: model.y,
+							i: model.y ? 'Default day of month view' : 'Custom day of month view',
+							k: $author$project$Example$UserClickedCustomDayOfMonth
 						}),
 						$author$project$Example$viewToggleButton(
 						{
-							active: model.customWeekdayHeader,
-							label: model.customWeekdayHeader ? 'Default weekday header view' : 'Custom weekday header view',
-							onClick: $author$project$Example$UserClickedCustomWeekdayHeader
+							J: model.D,
+							i: model.D ? 'Default weekday header view' : 'Custom weekday header view',
+							k: $author$project$Example$UserClickedCustomWeekdayHeader
 						}),
 						$author$project$Example$viewToggleButton(
 						{
-							active: model.customMonthHeader,
-							label: model.customMonthHeader ? 'Default month header view' : 'Custom month header view',
-							onClick: $author$project$Example$UserClickedCustomMonthHeader
+							J: model.C,
+							i: model.C ? 'Default month header view' : 'Custom month header view',
+							k: $author$project$Example$UserClickedCustomMonthHeader
 						})
 					]))
 			]),
-		title: 'Example Calendar'
+		_: 'Example Calendar'
 	};
 };
 var $author$project$Example$main = $elm$browser$Browser$document(
-	{init: $author$project$Example$init, subscriptions: $author$project$Example$subscriptions, update: $author$project$Example$update, view: $author$project$Example$view});
+	{bo: $author$project$Example$init, bz: $author$project$Example$subscriptions, bA: $author$project$Example$update, bB: $author$project$Example$view});
 _Platform_export({'Example':{'init':$author$project$Example$main(
-	$elm$json$Json$Decode$succeed(_Utils_Tuple0))(0)}});}(this));
+	$elm$json$Json$Decode$succeed(0))(0)}});}(this));

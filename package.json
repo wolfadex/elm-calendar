@@ -9,7 +9,8 @@
     "dev": "run-pty run-pty.json",
     "dev:example": "elm-watch hot",
     "dev:test": "elm-test --watch",
-    "dev:review": "elm-review --watch --fix"
+    "dev:review": "elm-review --watch --fix",
+    "build:example": "elm-watch make --optimize"
   },
   "devDependencies": {
     "@lydell/elm-json": "0.2.13-1",

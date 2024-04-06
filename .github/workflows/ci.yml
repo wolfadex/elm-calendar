@@ -69,3 +69,14 @@ jobs:
           push: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build example
+        run: npm run build:example
+      - name: Commit example
+        uses: EndBug/add-and-commit@v9
+        with:
+          add: "docs/elm.js"
+          author_name: GitHub Actions
+          message: "Update docs/elm.js from CI for example."
+          push: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

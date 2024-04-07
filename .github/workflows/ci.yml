@@ -61,7 +61,7 @@ jobs:
       #   with:
       #     token: ${{ secrets.NPM_TOKEN }}
       - name: Generate elm-doc-preview
-        uses: EndBug/add-and-commit@v5
+        uses: EndBug/add-and-commit@v9
         with:
           add: "docs.json"
           author_name: GitHub Actions

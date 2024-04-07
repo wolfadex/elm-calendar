@@ -83,4 +83,4 @@ Calendar.new
     |> Calendar.view
 ```
 
-To see live examples, checkout [link to demo site](https://wolfadex.github.io/elm-calendar/)
+To see live examples, checkout [the live demo](https://wolfadex.github.io/elm-calendar/)

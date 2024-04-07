@@ -3997,7 +3997,7 @@ var _Browser_document = _Debugger_document || F4(function(impl, flagDecoder, deb
 				bodyNode = _VirtualDom_applyPatches(bodyNode, currNode, patches, sendToApp);
 				currNode = nextNode;
 				_VirtualDom_divertHrefToApp = 0;
-				(title !== doc._) && (_VirtualDom_doc.title = title = doc._);
+				(title !== doc.T) && (_VirtualDom_doc.title = title = doc.T);
 			});
 		}
 	);
@@ -5473,7 +5473,7 @@ var $author$project$Example$init = function (_v0) {
 			B: false,
 			C: false,
 			y: A3($justinmimbs$date$Date$fromCalendarDate, 2024, 1, 22),
-			Z: 2,
+			_: 2,
 			t: A3($justinmimbs$date$Date$fromCalendarDate, 2024, 1, 22),
 			N: A3($justinmimbs$date$Date$fromCalendarDate, 2024, 1, 22)
 		},
@@ -5652,7 +5652,7 @@ var $author$project$Example$update = F2(
 						model,
 						{
 							y: function () {
-								var _v1 = model.Z;
+								var _v1 = model._;
 								switch (_v1) {
 									case 3:
 										return A3($justinmimbs$date$Date$add, 0, -1, model.y);
@@ -5672,7 +5672,7 @@ var $author$project$Example$update = F2(
 						model,
 						{
 							y: function () {
-								var _v2 = model.Z;
+								var _v2 = model._;
 								switch (_v2) {
 									case 3:
 										return A3($justinmimbs$date$Date$add, 0, 1, model.y);
@@ -5697,7 +5697,7 @@ var $author$project$Example$update = F2(
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{Z: scope}),
+						{_: scope}),
 					$elm$core$Platform$Cmd$none);
 			case 2:
 				return _Utils_Tuple2(
@@ -5815,7 +5815,7 @@ var $author$project$Example$monthToShortLabel = function (month) {
 var $author$project$Calendar$Config = $elm$core$Basics$identity;
 var $elm$time$Time$Mon = 0;
 var $author$project$Calendar$new = function (options) {
-	return {y: options.y, Z: options.Z, W: false, aa: $elm$core$Maybe$Nothing, ab: $elm$core$Maybe$Nothing, ac: $elm$core$Maybe$Nothing, ad: $elm$core$Maybe$Nothing, ae: $elm$core$Maybe$Nothing, af: $elm$core$Maybe$Nothing, ag: $elm$core$Maybe$Nothing, H: 0};
+	return {y: options.y, _: options._, X: false, aa: $elm$core$Maybe$Nothing, ab: $elm$core$Maybe$Nothing, ac: $elm$core$Maybe$Nothing, ad: $elm$core$Maybe$Nothing, ae: $elm$core$Maybe$Nothing, af: $elm$core$Maybe$Nothing, ag: $elm$core$Maybe$Nothing, H: 0};
 };
 var $elm$virtual_dom$VirtualDom$style = _VirtualDom_style;
 var $elm$html$Html$Attributes$style = $elm$virtual_dom$VirtualDom$style;
@@ -6054,6 +6054,11 @@ var $author$project$Calendar$monthDateRange = function (options) {
 	var lastDate = _v0.b;
 	return A4($justinmimbs$date$Date$range, 11, 1, firstDate, lastDate);
 };
+var $elm$virtual_dom$VirtualDom$keyedNode = function (tag) {
+	return _VirtualDom_keyedNode(
+		_VirtualDom_noScript(tag));
+};
+var $elm$html$Html$Keyed$node = $elm$virtual_dom$VirtualDom$keyedNode;
 var $author$project$Calendar$allHours = A2($elm$core$List$range, 0, 23);
 var $elm$core$List$append = F2(
 	function (xs, ys) {
@@ -6119,7 +6124,7 @@ var $author$project$Calendar$viewHour = F2(
 				_List_fromArray(
 					[
 						$elm$html$Html$text(
-						options.W ? (A3(
+						options.X ? (A3(
 							$elm$core$String$padLeft,
 							2,
 							'0',
@@ -6314,86 +6319,35 @@ var $author$project$Calendar$viewDaysOfWeek = function (options) {
 		$elm$core$List$indexedMap,
 		F2(
 			function (index, weekday) {
-				var _v0 = options.ag;
-				if (!_v0.$) {
-					var viewWeekdayHeader = _v0.a;
-					return A2(viewWeekdayHeader, index, weekday);
-				} else {
-					return A2(
-						$elm$html$Html$div,
-						_List_fromArray(
-							[
-								A2($elm$html$Html$Attributes$style, 'border', '1px solid black'),
-								A2($elm$html$Html$Attributes$style, 'grid-row', '1'),
-								A2(
-								$elm$html$Html$Attributes$style,
-								'grid-column',
-								$elm$core$String$fromInt(index + 1))
-							]),
-						_List_fromArray(
-							[
-								$elm$html$Html$text(
-								$author$project$Calendar$weekdayToShortLabel(weekday))
-							]));
-				}
+				return _Utils_Tuple2(
+					$author$project$Calendar$weekdayToShortLabel(weekday),
+					function () {
+						var _v0 = options.ag;
+						if (!_v0.$) {
+							var viewWeekdayHeader = _v0.a;
+							return A2(viewWeekdayHeader, index, weekday);
+						} else {
+							return A2(
+								$elm$html$Html$div,
+								_List_fromArray(
+									[
+										A2($elm$html$Html$Attributes$style, 'border', '1px solid black'),
+										A2($elm$html$Html$Attributes$style, 'grid-row', '1'),
+										A2(
+										$elm$html$Html$Attributes$style,
+										'grid-column',
+										$elm$core$String$fromInt(index + 1))
+									]),
+								_List_fromArray(
+									[
+										$elm$html$Html$text(
+										$author$project$Calendar$weekdayToShortLabel(weekday))
+									]));
+						}
+					}());
 			}),
 		$author$project$Calendar$daysOfWeek(options.H));
 };
-var $author$project$Calendar$viewMonthDay = F3(
-	function (options, index, date) {
-		var row = ((index / 7) | 0) + 2;
-		var column = A2($elm$core$Basics$modBy, 7, index) + 1;
-		var _v0 = options.ab;
-		if (!_v0.$) {
-			var viewDayOfMonth = _v0.a;
-			return A2(
-				viewDayOfMonth,
-				{ay: column, a$: row},
-				date);
-		} else {
-			return A2(
-				$elm$html$Html$div,
-				_List_fromArray(
-					[
-						A2($elm$html$Html$Attributes$style, 'min-width', '0'),
-						A2(
-						$elm$html$Html$Attributes$style,
-						'grid-column',
-						$elm$core$String$fromInt(column)),
-						A2(
-						$elm$html$Html$Attributes$style,
-						'grid-row',
-						$elm$core$String$fromInt(row))
-					]),
-				_List_fromArray(
-					[
-						A2(
-						$elm$html$Html$div,
-						_List_fromArray(
-							[
-								A2($elm$html$Html$Attributes$style, 'border', '1px solid black'),
-								A2($elm$html$Html$Attributes$style, 'width', '100%'),
-								A2($elm$html$Html$Attributes$style, 'height', '100%'),
-								A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-								A2($elm$html$Html$Attributes$style, 'justify-content', 'center'),
-								A2($elm$html$Html$Attributes$style, 'align-items', 'center')
-							]),
-						_List_fromArray(
-							[
-								$elm$html$Html$text(
-								$elm$core$String$fromInt(
-									$justinmimbs$date$Date$day(date)))
-							]))
-					]));
-		}
-	});
-var $author$project$Calendar$viewMonthDays = function (options) {
-	return A2(
-		$elm$core$List$indexedMap,
-		$author$project$Calendar$viewMonthDay(options),
-		$author$project$Calendar$monthDateRange(options));
-};
-var $elm$html$Html$h2 = _VirtualDom_node('h2');
 var $author$project$Calendar$monthToLabel = function (month) {
 	switch (month) {
 		case 0:
@@ -6422,51 +6376,117 @@ var $author$project$Calendar$monthToLabel = function (month) {
 			return 'December';
 	}
 };
+var $author$project$Calendar$viewMonthDay = F3(
+	function (options, index, date) {
+		var row = ((index / 7) | 0) + 2;
+		var column = A2($elm$core$Basics$modBy, 7, index) + 1;
+		return _Utils_Tuple2(
+			$author$project$Calendar$monthToLabel(
+				$justinmimbs$date$Date$month(date)) + ('-' + $elm$core$String$fromInt(
+				$justinmimbs$date$Date$day(date))),
+			function () {
+				var _v0 = options.ab;
+				if (!_v0.$) {
+					var viewDayOfMonth = _v0.a;
+					return A2(
+						viewDayOfMonth,
+						{ay: column, a$: row},
+						date);
+				} else {
+					return A2(
+						$elm$html$Html$div,
+						_List_fromArray(
+							[
+								A2($elm$html$Html$Attributes$style, 'min-width', '0'),
+								A2(
+								$elm$html$Html$Attributes$style,
+								'grid-column',
+								$elm$core$String$fromInt(column)),
+								A2(
+								$elm$html$Html$Attributes$style,
+								'grid-row',
+								$elm$core$String$fromInt(row))
+							]),
+						_List_fromArray(
+							[
+								A2(
+								$elm$html$Html$div,
+								_List_fromArray(
+									[
+										A2($elm$html$Html$Attributes$style, 'border', '1px solid black'),
+										A2($elm$html$Html$Attributes$style, 'width', '100%'),
+										A2($elm$html$Html$Attributes$style, 'height', '100%'),
+										A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+										A2($elm$html$Html$Attributes$style, 'justify-content', 'center'),
+										A2($elm$html$Html$Attributes$style, 'align-items', 'center')
+									]),
+								_List_fromArray(
+									[
+										$elm$html$Html$text(
+										$elm$core$String$fromInt(
+											$justinmimbs$date$Date$day(date)))
+									]))
+							]));
+				}
+			}());
+	});
+var $author$project$Calendar$viewMonthDays = function (options) {
+	return A2(
+		$elm$core$List$indexedMap,
+		$author$project$Calendar$viewMonthDay(options),
+		$author$project$Calendar$monthDateRange(options));
+};
+var $elm$html$Html$h2 = _VirtualDom_node('h2');
 var $author$project$Calendar$viewMonthDayOfYear = F3(
 	function (options, month, date) {
-		var _v0 = options.ac;
-		if (!_v0.$) {
-			var viewDayOfMonthOfYear = _v0.a;
-			return A2(viewDayOfMonthOfYear, month, date);
-		} else {
-			return A2(
-				$elm$html$Html$div,
-				_List_fromArray(
-					[
-						A2($elm$html$Html$Attributes$style, 'min-width', '0')
-					]),
-				_List_fromArray(
-					[
-						_Utils_eq(
-						$justinmimbs$date$Date$month(date),
-						month) ? A2(
+		return _Utils_Tuple2(
+			$author$project$Calendar$monthToLabel(month) + ('-' + $elm$core$String$fromInt(
+				$justinmimbs$date$Date$day(date))),
+			function () {
+				var _v0 = options.ac;
+				if (!_v0.$) {
+					var viewDayOfMonthOfYear = _v0.a;
+					return A2(viewDayOfMonthOfYear, month, date);
+				} else {
+					return A2(
 						$elm$html$Html$div,
 						_List_fromArray(
 							[
-								A2($elm$html$Html$Attributes$style, 'border', '1px solid black'),
-								A2($elm$html$Html$Attributes$style, 'width', '100%'),
-								A2($elm$html$Html$Attributes$style, 'height', '100%'),
-								A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-								A2($elm$html$Html$Attributes$style, 'justify-content', 'center'),
-								A2($elm$html$Html$Attributes$style, 'align-items', 'center')
+								A2($elm$html$Html$Attributes$style, 'min-width', '0')
 							]),
 						_List_fromArray(
 							[
-								$elm$html$Html$text(
-								$elm$core$String$fromInt(
-									$justinmimbs$date$Date$day(date)))
-							])) : A2(
-						$elm$html$Html$div,
-						_List_fromArray(
-							[
-								A2($elm$html$Html$Attributes$style, 'border', '1px solid black'),
-								A2($elm$html$Html$Attributes$style, 'width', '100%'),
-								A2($elm$html$Html$Attributes$style, 'height', '100%'),
-								A2($elm$html$Html$Attributes$style, 'background', 'lightgray')
-							]),
-						_List_Nil)
-					]));
-		}
+								_Utils_eq(
+								$justinmimbs$date$Date$month(date),
+								month) ? A2(
+								$elm$html$Html$div,
+								_List_fromArray(
+									[
+										A2($elm$html$Html$Attributes$style, 'border', '1px solid black'),
+										A2($elm$html$Html$Attributes$style, 'width', '100%'),
+										A2($elm$html$Html$Attributes$style, 'height', '100%'),
+										A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+										A2($elm$html$Html$Attributes$style, 'justify-content', 'center'),
+										A2($elm$html$Html$Attributes$style, 'align-items', 'center')
+									]),
+								_List_fromArray(
+									[
+										$elm$html$Html$text(
+										$elm$core$String$fromInt(
+											$justinmimbs$date$Date$day(date)))
+									])) : A2(
+								$elm$html$Html$div,
+								_List_fromArray(
+									[
+										A2($elm$html$Html$Attributes$style, 'border', '1px solid black'),
+										A2($elm$html$Html$Attributes$style, 'width', '100%'),
+										A2($elm$html$Html$Attributes$style, 'height', '100%'),
+										A2($elm$html$Html$Attributes$style, 'background', 'lightgray')
+									]),
+								_List_Nil)
+							]));
+				}
+			}());
 	});
 var $author$project$Calendar$viewMonthDaysOfYear = F2(
 	function (options, month) {
@@ -6514,8 +6534,9 @@ var $author$project$Calendar$viewMonthOfYear = F2(
 								]));
 					}
 				}(),
-					A2(
-					$elm$html$Html$div,
+					A3(
+					$elm$html$Html$Keyed$node,
+					'div',
 					_List_fromArray(
 						[
 							A2($elm$html$Html$Attributes$style, 'display', 'grid'),
@@ -6565,7 +6586,7 @@ var $author$project$Calendar$viewWeekHour = F2(
 				_List_fromArray(
 					[
 						$elm$html$Html$text(
-						options.W ? (A3(
+						options.X ? (A3(
 							$elm$core$String$padLeft,
 							2,
 							'0',
@@ -6716,7 +6737,7 @@ var $author$project$Calendar$viewWeek = function (options) {
 };
 var $author$project$Calendar$view = function (_v0) {
 	var options = _v0;
-	var _v1 = options.Z;
+	var _v1 = options._;
 	switch (_v1) {
 		case 0:
 			return $author$project$Calendar$viewDay(options);
@@ -6728,8 +6749,9 @@ var $author$project$Calendar$view = function (_v0) {
 			}(
 				$elm$core$List$length(
 					$author$project$Calendar$monthDateRange(options)));
-			return A2(
-				$elm$html$Html$div,
+			return A3(
+				$elm$html$Html$Keyed$node,
+				'div',
 				_List_fromArray(
 					[
 						A2($elm$html$Html$Attributes$style, 'display', 'grid'),
@@ -6895,24 +6917,24 @@ var $author$project$Example$viewButtonGroup = F2(
 			}());
 	});
 var $author$project$Example$longEvent = {
-	X: 'aqua',
+	Y: 'aqua',
 	ai: F2(
 		function (period, day) {
 			return _Utils_eq(
 				$justinmimbs$date$Date$month(day),
 				$justinmimbs$date$Date$month(period)) && (($justinmimbs$date$Date$day(day) >= 15) && ($justinmimbs$date$Date$day(day) <= 29));
 		}),
-	_: 'Long Event'
+	T: 'Long Event'
 };
 var $author$project$Example$shortEvent = {
-	X: 'coral',
+	Y: 'coral',
 	ai: F2(
 		function (period, day) {
 			return _Utils_eq(
 				$justinmimbs$date$Date$month(day),
 				$justinmimbs$date$Date$month(period)) && (($justinmimbs$date$Date$day(day) >= 3) && ($justinmimbs$date$Date$day(day) <= 5));
 		}),
-	_: 'Short Event'
+	T: 'Short Event'
 };
 var $author$project$Example$events = _List_fromArray(
 	[$author$project$Example$shortEvent, $author$project$Example$longEvent]);
@@ -7103,40 +7125,42 @@ var $author$project$Example$viewEvent = F2(
 					var row = _v1.a$;
 					var columnStart = _v1.aA;
 					var columnEnd = _v1.az;
-					return A2(
-						$elm$html$Html$div,
-						_Utils_ap(
+					return _Utils_Tuple2(
+						event.T,
+						A2(
+							$elm$html$Html$div,
+							_Utils_ap(
+								_List_fromArray(
+									[
+										A2($elm$html$Html$Attributes$style, 'background', event.Y),
+										A2($elm$html$Html$Attributes$style, 'padding', '0.25rem 0.5rem'),
+										A2(
+										$elm$html$Html$Attributes$style,
+										'grid-row',
+										$elm$core$String$fromInt(row)),
+										A2(
+										$elm$html$Html$Attributes$style,
+										'grid-column',
+										$elm$core$String$fromInt(columnStart) + (' / ' + $elm$core$String$fromInt(columnEnd + 1))),
+										A2($elm$html$Html$Attributes$style, 'margin-top', '2rem'),
+										A2($elm$html$Html$Attributes$style, 'margin-bottom', '3px'),
+										A2($elm$html$Html$Attributes$style, 'border-style', 'solid'),
+										A2($elm$html$Html$Attributes$style, 'border-color', event.Y),
+										A2($elm$html$Html$Attributes$style, 'border-width', '2px')
+									]),
+								_Utils_ap(
+									(!index) ? beginingStyles : _List_Nil,
+									_Utils_ap(
+										_Utils_eq(index, rowCount - 1) ? endingStyles : _List_Nil,
+										_Utils_ap(
+											((index > 0) && (_Utils_cmp(index, rowCount - 1) < 0)) ? _Utils_ap(middleEndStyles, middleStartStyles) : _List_Nil,
+											_Utils_ap(
+												((!index) && (_Utils_cmp(index, rowCount - 1) < 0)) ? middleEndStyles : _List_Nil,
+												(_Utils_eq(index, rowCount - 1) && (index > 0)) ? middleStartStyles : _List_Nil))))),
 							_List_fromArray(
 								[
-									A2($elm$html$Html$Attributes$style, 'background', event.X),
-									A2($elm$html$Html$Attributes$style, 'padding', '0.25rem 0.5rem'),
-									A2(
-									$elm$html$Html$Attributes$style,
-									'grid-row',
-									$elm$core$String$fromInt(row)),
-									A2(
-									$elm$html$Html$Attributes$style,
-									'grid-column',
-									$elm$core$String$fromInt(columnStart) + (' / ' + $elm$core$String$fromInt(columnEnd + 1))),
-									A2($elm$html$Html$Attributes$style, 'margin-top', '2rem'),
-									A2($elm$html$Html$Attributes$style, 'margin-bottom', '3px'),
-									A2($elm$html$Html$Attributes$style, 'border-style', 'solid'),
-									A2($elm$html$Html$Attributes$style, 'border-color', event.X),
-									A2($elm$html$Html$Attributes$style, 'border-width', '2px')
-								]),
-							_Utils_ap(
-								(!index) ? beginingStyles : _List_Nil,
-								_Utils_ap(
-									_Utils_eq(index, rowCount - 1) ? endingStyles : _List_Nil,
-									_Utils_ap(
-										((index > 0) && (_Utils_cmp(index, rowCount - 1) < 0)) ? _Utils_ap(middleEndStyles, middleStartStyles) : _List_Nil,
-										_Utils_ap(
-											((!index) && (_Utils_cmp(index, rowCount - 1) < 0)) ? middleEndStyles : _List_Nil,
-											(_Utils_eq(index, rowCount - 1) && (index > 0)) ? middleStartStyles : _List_Nil))))),
-						_List_fromArray(
-							[
-								$elm$html$Html$text(event._)
-							]));
+									$elm$html$Html$text(event.T)
+								])));
 				}),
 			rowsAndColumns);
 	});
@@ -7544,7 +7568,7 @@ var $author$project$Example$view = function (model) {
 										A2($elm$html$Html$Attributes$style, 'text-align', 'center')
 									]),
 								function () {
-									var _v0 = model.Z;
+									var _v0 = model._;
 									switch (_v0) {
 										case 3:
 											return _List_fromArray(
@@ -7605,7 +7629,7 @@ var $author$project$Example$view = function (model) {
 									[
 										{
 										p: function () {
-											var _v2 = model.Z;
+											var _v2 = model._;
 											if (_v2 === 3) {
 												return _List_fromArray(
 													[
@@ -7621,7 +7645,7 @@ var $author$project$Example$view = function (model) {
 									},
 										{
 										p: function () {
-											var _v3 = model.Z;
+											var _v3 = model._;
 											if (_v3 === 2) {
 												return _List_fromArray(
 													[
@@ -7637,7 +7661,7 @@ var $author$project$Example$view = function (model) {
 									},
 										{
 										p: function () {
-											var _v4 = model.Z;
+											var _v4 = model._;
 											if (_v4 === 1) {
 												return _List_fromArray(
 													[
@@ -7653,7 +7677,7 @@ var $author$project$Example$view = function (model) {
 									},
 										{
 										p: function () {
-											var _v5 = model.Z;
+											var _v5 = model._;
 											if (!_v5) {
 												return _List_fromArray(
 													[
@@ -7683,7 +7707,7 @@ var $author$project$Example$view = function (model) {
 						_List_fromArray(
 							[c]));
 				};
-				var _v6 = model.Z;
+				var _v6 = model._;
 				switch (_v6) {
 					case 3:
 						return wrapper(cal);
@@ -7722,7 +7746,7 @@ var $author$project$Example$view = function (model) {
 											$author$project$Calendar$withViewDayOfMonth(
 												$author$project$Example$viewDayOfMonthCustom(model.t)),
 											$author$project$Calendar$new(
-												{y: model.y, Z: model.Z}))))))))),
+												{y: model.y, _: model._}))))))))),
 				A2($elm$html$Html$br, _List_Nil, _List_Nil),
 				A2(
 				$elm$html$Html$div,
@@ -7753,7 +7777,7 @@ var $author$project$Example$view = function (model) {
 						})
 					]))
 			]),
-		_: 'Example Calendar'
+		T: 'Example Calendar'
 	};
 };
 var $author$project$Example$main = $elm$browser$Browser$document(

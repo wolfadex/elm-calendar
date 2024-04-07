@@ -50,6 +50,7 @@ module Calendar exposing
 import Date exposing (Date)
 import Html exposing (Html)
 import Html.Attributes
+import Html.Keyed
 import Time
 
 
@@ -84,7 +85,7 @@ type alias InternalConfig msg =
     , viewMonthHeader : Maybe (Time.Month -> Html msg)
     , viewDayHeader : Maybe (Time.Weekday -> Html msg)
     , viewDayOfWeekHeader : Maybe (Date -> Html msg)
-    , viewMultiDayEvents : Maybe (List (Html msg))
+    , viewMultiDayEvents : Maybe (List ( String, Html msg ))
     }
 
 
@@ -346,7 +347,7 @@ spaning across multiple grid cells.
         |> Calendar.view
 
 -}
-withViewMultiDayEvent : List (Html msg) -> Config msg -> Config msg
+withViewMultiDayEvent : List ( String, Html msg ) -> Config msg -> Config msg
 withViewMultiDayEvent viewMultiDayEvents (Config options) =
     Config
         { options
@@ -382,7 +383,7 @@ view (Config options) =
                         |> List.length
                         |> (\count -> ceiling (toFloat count / 7))
             in
-            Html.div
+            Html.Keyed.node "div"
                 [ Html.Attributes.style "display" "grid"
                 , Html.Attributes.style "grid-template-columns" "repeat(7, 1fr)"
                 , Html.Attributes.style "grid-template-rows" ("min-content repeat(" ++ String.fromInt weeks ++ ", 1fr)")
@@ -682,7 +683,7 @@ viewMonthOfYear options month =
             Nothing ->
                 Html.h2 [ Html.Attributes.style "text-align" "center" ]
                     [ Html.text (monthToLabel month) ]
-        , Html.div
+        , Html.Keyed.node "div"
             [ Html.Attributes.style "display" "grid"
             , Html.Attributes.style "grid-template-columns" "repeat(7, 1fr)"
             , Html.Attributes.style "grid-template-rows" ("min-content repeat(" ++ String.fromInt weeks ++ ", 1fr)")
@@ -734,7 +735,7 @@ monthToLabel month =
             "December"
 
 
-viewMonthDaysOfYear : InternalConfig msg -> Time.Month -> List (Html msg)
+viewMonthDaysOfYear : InternalConfig msg -> Time.Month -> List ( String, Html msg )
 viewMonthDaysOfYear options month =
     let
         period =
@@ -747,9 +748,10 @@ viewMonthDaysOfYear options month =
         |> List.map (viewMonthDayOfYear options month)
 
 
-viewMonthDayOfYear : InternalConfig msg -> Time.Month -> Date -> Html msg
+viewMonthDayOfYear : InternalConfig msg -> Time.Month -> Date -> ( String, Html msg )
 viewMonthDayOfYear options month date =
-    case options.viewDayOfMonthOfYear of
+    ( monthToLabel month ++ "-" ++ String.fromInt (Date.day date)
+    , case options.viewDayOfMonthOfYear of
         Just viewDayOfMonthOfYear ->
             viewDayOfMonthOfYear month date
 
@@ -777,15 +779,17 @@ viewMonthDayOfYear options month date =
                         ]
                         []
                 ]
+    )
 
 
-viewDaysOfWeek : InternalConfig msg -> List (Html msg)
+viewDaysOfWeek : InternalConfig msg -> List ( String, Html msg )
 viewDaysOfWeek options =
     options.weekStartsOn
         |> daysOfWeek
         |> List.indexedMap
             (\index weekday ->
-                case options.viewWeekdayHeader of
+                ( weekdayToShortLabel weekday
+                , case options.viewWeekdayHeader of
                     Just viewWeekdayHeader ->
                         viewWeekdayHeader index weekday
 
@@ -796,6 +800,7 @@ viewDaysOfWeek options =
                             , Html.Attributes.style "grid-column" (String.fromInt (index + 1))
                             ]
                             [ Html.text (weekdayToShortLabel weekday) ]
+                )
             )
 
 
@@ -874,7 +879,7 @@ weekdayToLabel weekday =
             "Saturday"
 
 
-viewMonthDays : InternalConfig msg -> List (Html msg)
+viewMonthDays : InternalConfig msg -> List ( String, Html msg )
 viewMonthDays options =
     options
         |> monthDateRange
@@ -940,7 +945,7 @@ endOfWeek weekday =
             Date.Saturday
 
 
-viewMonthDay : InternalConfig msg -> Int -> Date -> Html msg
+viewMonthDay : InternalConfig msg -> Int -> Date -> ( String, Html msg )
 viewMonthDay options index date =
     let
         column =
@@ -949,7 +954,8 @@ viewMonthDay options index date =
         row =
             (index // 7) + 2
     in
-    case options.viewDayOfMonth of
+    ( monthToLabel (Date.month date) ++ "-" ++ String.fromInt (Date.day date)
+    , case options.viewDayOfMonth of
         Just viewDayOfMonth ->
             viewDayOfMonth { column = column, row = row } date
 
@@ -969,6 +975,7 @@ viewMonthDay options index date =
                     ]
                     [ Html.text (String.fromInt (Date.day date)) ]
                 ]
+    )
 
 
 

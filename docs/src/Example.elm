@@ -414,13 +414,14 @@ events =
     [ shortEvent, longEvent ]
 
 
-viewCustomEvent : Date -> List (Html Msg)
+viewCustomEvent : Date -> List ( String, Html Msg )
 viewCustomEvent focalPeriod =
     List.concatMap
         (viewEvent focalPeriod)
         events
 
 
+viewEvent : Date -> { title : String, filter : Date -> Date -> Bool, color : String } -> List ( String, Html Msg )
 viewEvent focalPeriod event =
     let
         ( start, end ) =
@@ -479,7 +480,8 @@ viewEvent focalPeriod event =
     in
     List.indexedMap
         (\index { row, columnStart, columnEnd } ->
-            Html.div
+            ( event.title
+            , Html.div
                 ([ Html.Attributes.style "background" event.color
                  , Html.Attributes.style "padding" "0.25rem 0.5rem"
                  , Html.Attributes.style "grid-row" (String.fromInt row)
@@ -522,6 +524,7 @@ viewEvent focalPeriod event =
                        )
                 )
                 [ Html.text event.title ]
+            )
         )
         rowsAndColumns
 

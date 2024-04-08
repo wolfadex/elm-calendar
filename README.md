@@ -24,7 +24,7 @@ Calendar.new
     |> Calendar.view
 ```
 
-This is a nice start, but I think we can do better. I'd like add some flair to may actual birthday.
+This is a nice start, but I think we can do better. I'd like to add some flair to my actual birthday.
 
 ```elm
 import Calendar exposing (Calendar)

@@ -3,7 +3,7 @@
     "name": "wolfadex/elm-calendar",
     "summary": "A package for viewing a calendar of events",
     "license": "BSD-3-Clause",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "exposed-modules": [
         "Calendar"
     ],

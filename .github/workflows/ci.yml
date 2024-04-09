@@ -67,7 +67,7 @@ jobs:
         with:
           add: '["docs.json", "docs/elm.js"]'
           author_name: GitHub Actions
-          message: "Update docs.json from CI for elm-doc-preview."
+          message: "Update docs from CI."
           push: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

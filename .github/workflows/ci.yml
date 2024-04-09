@@ -60,23 +60,14 @@ jobs:
       #   uses: JS-DevTools/npm-publish@v1
       #   with:
       #     token: ${{ secrets.NPM_TOKEN }}
-      - name: Generate elm-doc-preview
-        uses: EndBug/add-and-commit@v9
-        with:
-          add: "docs.json"
-          author_name: GitHub Actions
-          message: "Update docs.json from CI for elm-doc-preview."
-          push: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Build example
         run: npm run build:example
-      - name: Commit example
+      - name: Generate elm-doc-preview & example
         uses: EndBug/add-and-commit@v9
         with:
-          add: "docs/elm.js"
+          add: '["docs.json", "docs/elm.js"]'
           author_name: GitHub Actions
-          message: "Update docs/elm.js from CI for example."
+          message: "Update docs.json from CI for elm-doc-preview."
           push: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

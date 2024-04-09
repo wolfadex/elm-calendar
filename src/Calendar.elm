@@ -744,7 +744,7 @@ viewMonthDaysOfYear options month =
         ( firstDate, lastDate ) =
             calendarMonthBounds options.weekStartsOn period
     in
-    Date.range Date.Day 1 firstDate lastDate
+    Date.range Date.Day 1 firstDate (Date.add Date.Days 1 lastDate)
         |> List.map (viewMonthDayOfYear options month)
 
 
@@ -892,7 +892,7 @@ monthDateRange options =
         ( firstDate, lastDate ) =
             calendarMonthBounds options.weekStartsOn options.period
     in
-    Date.range Date.Day 1 firstDate lastDate
+    Date.range Date.Day 1 firstDate (Date.add Date.Days 1 lastDate)
 
 
 startOfWeek : Time.Weekday -> Date.Interval
